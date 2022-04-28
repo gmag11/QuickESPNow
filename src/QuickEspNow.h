@@ -55,9 +55,10 @@ class PeerListClass {
     peer_list_t peer_list;
 
     bool peer_exists (uint8_t* mac);
-    peer_t& get_peer (uint8_t* mac);
+    peer_t* get_peer (uint8_t* mac);
     bool update_peer_use (uint8_t* mac);
     bool delete_peer (uint8_t* mac);
+    bool delete_peer ();
     bool add_peer (uint8_t* mac);
     uint8_t get_peer_number ();
 };
