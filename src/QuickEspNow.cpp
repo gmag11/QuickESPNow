@@ -288,6 +288,8 @@ bool PeerListClass::add_peer (uint8_t* mac) {
             return true;
         }
     }
+
+    return false;
 }
 
 bool PeerListClass::delete_peer (uint8_t* mac) {
