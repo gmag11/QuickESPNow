@@ -1,3 +1,5 @@
+#define UNIT_TEST
+
 #include <QuickEspNow.h>
 #include <unity.h>
 
@@ -49,7 +51,7 @@ void test_add_one_peer () {
 }
 
 void test_add_existing_peer () {
-    Serial.println ("test_add_existing_peer");
+    // Serial.println ("test_add_existing_peer");
     uint8_t mac[6] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
     TEST_ASSERT_FALSE (PeerList.peer_exists (mac));
     TEST_ASSERT_TRUE(PeerList.add_peer(mac));
@@ -62,41 +64,41 @@ void test_add_existing_peer () {
 }
 
 void test_add_max_peers () {
-    Serial.println ("test_add_max_peers");
+    // Serial.println ("test_add_max_peers");
     for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
         TEST_ASSERT_FALSE (PeerList.peer_exists (macs[i]));
         TEST_ASSERT_TRUE(PeerList.add_peer(macs[i]));
         TEST_ASSERT_TRUE (PeerList.peer_exists (macs[i]));
         TEST_ASSERT_EQUAL (i + 1, PeerList.get_peer_number ());
     }
-    PeerList.dump_peer_list ();
+    // PeerList.dump_peer_list ();
     for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
         TEST_ASSERT_TRUE (PeerList.delete_peer (macs[i]));
         TEST_ASSERT_EQUAL (ESP_NOW_MAX_TOTAL_PEER_NUM - i - 1, PeerList.get_peer_number ());
     }
-    PeerList.dump_peer_list ();
+    // PeerList.dump_peer_list ();
 }
 
 void test_add_max_peers_plus_1 () {
-    Serial.println ("test_add_max_peers_plus_1");
+    // Serial.println ("test_add_max_peers_plus_1");
     for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
         TEST_ASSERT_FALSE (PeerList.peer_exists (macs[i]));
         TEST_ASSERT_TRUE (PeerList.add_peer (macs[i]));
         TEST_ASSERT_TRUE (PeerList.peer_exists (macs[i]));
         TEST_ASSERT_EQUAL (i + 1, PeerList.get_peer_number ());
     }
-    PeerList.dump_peer_list ();
+    // PeerList.dump_peer_list ();
     TEST_ASSERT_FALSE (PeerList.peer_exists (macs[ESP_NOW_MAX_TOTAL_PEER_NUM]));
-    TEST_ASSERT_TRUE (PeerList.add_peer (macs[ESP_NOW_MAX_TOTAL_PEER_NUM]));
-    PeerList.dump_peer_list ();
-    TEST_ASSERT_TRUE (PeerList.peer_exists (macs[ESP_NOW_MAX_TOTAL_PEER_NUM]));
+    TEST_ASSERT_FALSE (PeerList.add_peer (macs[ESP_NOW_MAX_TOTAL_PEER_NUM]));
+    // PeerList.dump_peer_list ();
+    TEST_ASSERT_FALSE (PeerList.peer_exists (macs[ESP_NOW_MAX_TOTAL_PEER_NUM]));
     TEST_ASSERT_EQUAL (ESP_NOW_MAX_TOTAL_PEER_NUM, PeerList.get_peer_number ());
 
     for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
         TEST_ASSERT_TRUE (PeerList.delete_peer ());
         TEST_ASSERT_EQUAL (ESP_NOW_MAX_TOTAL_PEER_NUM - i - 1, PeerList.get_peer_number ());
     }
-    PeerList.dump_peer_list ();
+    // PeerList.dump_peer_list ();
 }
 
 void process () {
