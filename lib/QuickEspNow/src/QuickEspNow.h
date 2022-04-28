@@ -52,15 +52,18 @@ typedef struct {
 } peer_list_t;
 
 class PeerListClass {
+protected:
     peer_list_t peer_list;
 
-    bool peer_exists (uint8_t* mac);
-    peer_t* get_peer (uint8_t* mac);
-    bool update_peer_use (uint8_t* mac);
-    bool delete_peer (uint8_t* mac);
-    bool delete_peer ();
-    bool add_peer (uint8_t* mac);
+public:
+    bool peer_exists (const uint8_t* mac);
+    peer_t* get_peer (const uint8_t* mac);
+    bool update_peer_use (const uint8_t* mac);
+    bool delete_peer (const uint8_t* mac);
+    uint8_t* delete_peer ();
+    bool add_peer (const uint8_t* mac);
     uint8_t get_peer_number ();
+    void dump_peer_list ();
 };
 
 class QuickEspNow : public Comms_halClass {

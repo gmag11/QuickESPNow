@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#include "QuickEspNow.h"
+#include <QuickEspNow.h>
 #include <esp_wifi.h>
 
 static const String msg = "Hello esp-now from TTGO";
