@@ -182,13 +182,13 @@ bool QuickEspNow::addPeer (const uint8_t* peer_addr) {
     esp_now_peer_info_t peer;
     esp_err_t error = ESP_OK;
 
-    if (esp_now_is_peer_exist (peer_addr)) {
-        DEBUG_WARN ("Peer already exists");
+    if (peer_list.peer_exists (peer_addr)) {
+        DEBUG_VERBOSE ("Peer already exists");
         return true;
     }
 
     if (peer_list.get_peer_number() >= ESP_NOW_MAX_TOTAL_PEER_NUM) {
-        DEBUG_WARN ("Peer list full. Deleting older");
+        DEBUG_VERBOSE ("Peer list full. Deleting older");
         if (uint8_t* deleted_mac = peer_list.delete_peer ()) {
             esp_now_del_peer (deleted_mac);
         } else {
@@ -266,6 +266,7 @@ bool PeerListClass::peer_exists (const uint8_t* mac) {
         if (memcmp (peer_list.peer[i].mac, mac, ESP_NOW_ETH_ALEN) == 0) {
             if (peer_list.peer[i].active) {
                 peer_list.peer[i].last_msg = millis ();
+                DEBUG_VERBOSE ("Peer " MACSTR " found. Updated last_msg", MAC2STR (mac));
                 return true;
             }
         }
@@ -277,6 +278,7 @@ peer_t* PeerListClass::get_peer (const uint8_t* mac) {
     for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
         if (memcmp (peer_list.peer[i].mac, mac, ESP_NOW_ETH_ALEN) == 0) {
             if (peer_list.peer[i].active) {
+                DEBUG_VERBOSE ("Peer " MACSTR " found", MAC2STR (mac));
                 return &(peer_list.peer[i]);
             }
         }
@@ -295,10 +297,16 @@ bool PeerListClass::update_peer_use (const uint8_t* mac) {
 
 bool PeerListClass::add_peer (const uint8_t* mac) {
     if (int i = peer_exists (mac)) {
+        DEBUG_VERBOSE ("Peer " MACSTR " already exists", MAC2STR (mac));
         return false;
     }
     if (peer_list.peer_number >= ESP_NOW_MAX_TOTAL_PEER_NUM) {
-        delete_peer ();
+        //DEBUG_VERBOSE ("Peer list full. Deleting older");
+#ifndef UNIT_TEST
+        DEBUG_ERROR ("Should never happen");
+#endif
+        return false;
+        // delete_peer (); // Delete should happen in higher level
     }
 
     for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
@@ -307,6 +315,7 @@ bool PeerListClass::add_peer (const uint8_t* mac) {
             peer_list.peer[i].active = true;
             peer_list.peer[i].last_msg = millis ();
             peer_list.peer_number++;
+            DEBUG_VERBOSE ("Peer " MACSTR " added. Total peers = %d", MAC2STR (mac), peer_list.peer_number);
             return true;
         }
     }
@@ -319,6 +328,7 @@ bool PeerListClass::delete_peer (const uint8_t* mac) {
     if (peer) {
         peer->active = false;
         peer_list.peer_number--;
+        DEBUG_VERBOSE ("Peer " MACSTR " deleted. Total peers = %d", MAC2STR (mac), peer_list.peer_number);
         return true;
     }
     return false;
@@ -334,7 +344,7 @@ uint8_t* PeerListClass::delete_peer () {
             if (peer_list.peer[i].last_msg < oldest_msg || oldest_msg == 0) {
                 oldest_msg = peer_list.peer[i].last_msg;
                 oldest_index = i;
-                DEBUG_DBG ("Peer " MACSTR " is %d ms old. Deleting", MAC2STR (peer_list.peer[i].mac), oldest_msg);
+                DEBUG_VERBOSE ("Peer " MACSTR " is %d ms old. Deleting", MAC2STR (peer_list.peer[i].mac), oldest_msg);
             }
         }
     }
@@ -342,10 +352,12 @@ uint8_t* PeerListClass::delete_peer () {
         peer_list.peer[oldest_index].active = false;
         peer_list.peer_number--;
         mac = peer_list.peer[oldest_index].mac;
+        DEBUG_VERBOSE ("Peer " MACSTR " deleted. Last message %d ms ago. Total peers = %d", MAC2STR (mac), millis() - peer_list.peer[oldest_index].last_msg, peer_list.peer_number);
     }
     return mac;
 }
 
+#ifdef UNIT_TEST
 void PeerListClass::dump_peer_list () {
     Serial.printf ("Number of peers %d\n", peer_list.peer_number);
     for (int i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
@@ -354,3 +366,4 @@ void PeerListClass::dump_peer_list () {
         }
     }
 }
+#endif

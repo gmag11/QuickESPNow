@@ -63,7 +63,9 @@ public:
     uint8_t* delete_peer ();
     bool add_peer (const uint8_t* mac);
     uint8_t get_peer_number ();
+#ifdef UNIT_TEST
     void dump_peer_list ();
+#endif
 };
 
 class QuickEspNow : public Comms_halClass {

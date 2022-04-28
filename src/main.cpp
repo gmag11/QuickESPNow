@@ -45,10 +45,10 @@ void loop() {
     static time_t lastSend = 60000;
     static uint counter = 0;
 
-    if (millis () - lastSend >= 15000) {
+    if (millis () - lastSend >= 1000) {
         lastSend = millis ();
         String message = String (msg) + " " + String (counter++);
-        if (!quickEspNow.send (addr_t_display, (uint8_t*)message.c_str (), message.length ())) {
+        if (!quickEspNow.send (addr_ttgo, (uint8_t*)message.c_str (), message.length ())) {
             //Serial.printf (">>>>>>>>>> %ld: Message sent\n", micros());
         } else {
             Serial.printf (">>>>>>>>>> %ld: Message not sent\n", micros ());
