@@ -78,7 +78,7 @@ int32_t QuickEspNow::send (uint8_t* dstAddress, uint8_t* payload, size_t payload
         return -1;
     }
 
-    if (payload_len > ESPNOW_MAX_MESSAGE_LENGTH) {
+    if (payload_len > ESP_NOW_MAX_DATA_LEN) {
         DEBUG_WARN ("Length error");
         return -1;
     }
@@ -87,7 +87,7 @@ int32_t QuickEspNow::send (uint8_t* dstAddress, uint8_t* payload, size_t payload
         out_queue.pop ();
     }
 
-    memcpy (message.dstAddress, dstAddress, ESPNOW_ADDR_LEN);
+    memcpy (message.dstAddress, dstAddress, ESP_NOW_ETH_ALEN);
     message.payload_len = payload_len;
     memcpy (message.payload, payload, payload_len);
 
@@ -115,7 +115,7 @@ int32_t QuickEspNow::sendEspNowMessage (comms_queue_item_t* message) {
     if (!message) {
         return -1;
     }
-    if (!(message->payload_len) || (message->payload_len > ESPNOW_MAX_MESSAGE_LENGTH)) {
+    if (!(message->payload_len) || (message->payload_len > ESP_NOW_MAX_DATA_LEN)) {
         return -1;
     }
 
@@ -133,7 +133,7 @@ int32_t QuickEspNow::sendEspNowMessage (comms_queue_item_t* message) {
 
 #ifdef ESP32
     DEBUG_DBG ("esp now send result = %s", esp_err_to_name (error));
-    if (memcmp (message->dstAddress, ESPNOW_BROADCAST_ADDRESS, ESPNOW_ADDR_LEN)) {
+    if (memcmp (message->dstAddress, ESPNOW_BROADCAST_ADDRESS, ESP_NOW_ETH_ALEN)) {
         error = esp_now_del_peer (message->dstAddress);
         DEBUG_DBG ("Peer deleted. Result %s", esp_err_to_name (error));
     } else {
@@ -183,10 +183,11 @@ bool QuickEspNow::addPeer (const uint8_t* peer_addr) {
     esp_err_t error = ESP_OK;
 
     if (esp_now_is_peer_exist (peer_addr)) {
+        
         return true;
     }
-
-    memcpy (peer.peer_addr, peer_addr, ESPNOW_ADDR_LEN);
+    
+    memcpy (peer.peer_addr, peer_addr, ESP_NOW_ETH_ALEN);
     uint8_t ch;
     wifi_second_chan_t secondCh;
     esp_wifi_get_channel (&ch, &secondCh);
@@ -237,4 +238,84 @@ void ICACHE_FLASH_ATTR QuickEspNow::tx_cb (uint8_t* mac_addr, uint8_t status) {
     if (quickEspNow.sentResult) {
         quickEspNow.sentResult (mac_addr, status);
     }
+}
+
+uint8_t PeerListClass::get_peer_number () {
+    return peer_list.peer_number;
+}
+
+bool PeerListClass::peer_exists (uint8_t* mac) {
+    for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
+        if (memcmp (peer_list.peer[i].mac, mac, ESP_NOW_ETH_ALEN) == 0) {
+            if (peer_list.peer[i].active) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+peer_t* PeerListClass::get_peer (uint8_t* mac) {
+    for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
+        if (memcmp (peer_list.peer[i].mac, mac, ESP_NOW_ETH_ALEN) == 0) {
+            if (peer_list.peer[i].active) {
+                return &(peer_list.peer[i]);
+            }
+        }
+    }
+    return NULL;
+}
+
+bool PeerListClass::update_peer_use (uint8_t* mac) {
+    peer_t* peer = get_peer (mac);
+    if (peer) {
+        peer->last_msg = millis ();
+        return true;
+    }
+    return false;
+}
+
+bool PeerListClass::add_peer (uint8_t* mac) {
+    if (peer_exists (mac)) {
+        return false;
+    }
+    for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
+        if (!peer_list.peer[i].active) {
+            memcpy (peer_list.peer[i].mac, mac, ESP_NOW_ETH_ALEN);
+            peer_list.peer[i].active = true;
+            peer_list.peer[i].last_msg = millis ();
+            peer_list.peer_number++;
+            return true;
+        }
+    }
+}
+
+bool PeerListClass::delete_peer (uint8_t* mac) {
+    peer_t* peer = get_peer (mac);
+    if (peer) {
+        peer->active = false;
+        peer_list.peer_number--;
+        return true;
+    }
+    return false;
+}
+
+// Delete peer with older message
+bool PeerListClass::delete_peer () {
+    uint32_t oldest_msg = 0;
+    int oldest_index = -1;
+    for (int i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
+        if (peer_list.peer[i].active) {
+            if (peer_list.peer[i].last_msg < oldest_msg || oldest_msg == 0) {
+                oldest_msg = peer_list.peer[i].last_msg;
+                oldest_index = i;
+            }
+        }
+    }
+    if (oldest_index != -1) {
+        peer_list.peer[oldest_index].active = false;
+        peer_list.peer_number--;
+        return true;
+    }
+    return false;
 }

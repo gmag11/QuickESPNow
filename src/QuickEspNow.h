@@ -42,13 +42,25 @@ typedef struct {
 } comms_queue_item_t;
 
 typedef struct {
+    uint8_t mac[ESP_NOW_ETH_ALEN];
+    time_t last_msg;
+    bool active;
+} peer_t;
+typedef struct {
     uint8_t peer_number;
-    struct {
-        uint8_t mac[ESP_NOW_ETH_ALEN];
-        time_t last_msg;
-        bool active;
-    } peer[ESP_NOW_MAX_TOTAL_PEER_NUM];
+    peer_t peer[ESP_NOW_MAX_TOTAL_PEER_NUM];
 } peer_list_t;
+
+class PeerListClass {
+    peer_list_t peer_list;
+
+    bool peer_exists (uint8_t* mac);
+    peer_t& get_peer (uint8_t* mac);
+    bool update_peer_use (uint8_t* mac);
+    bool delete_peer (uint8_t* mac);
+    bool add_peer (uint8_t* mac);
+    uint8_t get_peer_number ();
+};
 
 class QuickEspNow : public Comms_halClass {
 public:
@@ -71,7 +83,7 @@ protected:
     bool readyToSend = true;
     RingBuffer<comms_queue_item_t> out_queue;
     uint8_t channel;
-    peer_list_t peer_list;
+    PeerListClass peer_list;
 
     void initComms ();
     bool addPeer (const uint8_t* peer_addr);
