@@ -1,6 +1,41 @@
 #include "QuickEspNow.h"
 #include "QuickDebug.h"
 
+#ifdef ESP8266
+
+typedef struct {
+    signed rssi : 8;
+    unsigned rate : 4;
+    unsigned is_group : 1;
+    unsigned : 1;
+    unsigned sig_mode : 2;
+    unsigned legacy_length : 12;
+    unsigned damatch0 : 1;
+    unsigned damatch1 : 1;
+    unsigned bssidmatch0 : 1;
+    unsigned bssidmatch1 : 1;
+    unsigned MCS : 7;
+    unsigned CWB : 1;
+    unsigned HT_length : 16;
+    unsigned Smoothing : 1;
+    unsigned Not_Sounding : 1;
+    unsigned : 1;
+    unsigned Aggregation : 1;
+    unsigned STBC : 2;
+    unsigned FEC_CODING : 1;
+    unsigned SGI : 1;
+    unsigned rxend_state : 8;
+    unsigned ampdu_cnt : 8;
+    unsigned channel : 4;
+    unsigned : 12;
+} wifi_pkt_rx_ctrl_t;
+
+typedef struct {
+    wifi_pkt_rx_ctrl_t rx_ctrl;
+    uint8_t payload[0]; /* ieee80211 packet buff */
+} wifi_promiscuous_pkt_t;
+#endif
+
 QuickEspNow quickEspNow;
 
 bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
@@ -21,23 +56,31 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
     }
 
     // check channel
-    if (channel < MIN_WIFI_CHANNEL || channel > MAX_WIFI_CHANNEL || channel == 255) {
-        DEBUG_ERROR ("Invalid wifi channel");
+    if (channel != CURRENT_WIFI_CHANNEL && (channel < MIN_WIFI_CHANNEL || channel > MAX_WIFI_CHANNEL)) {
+        DEBUG_ERROR ("Invalid wifi channel %d", channel);
         return false;
     }
 
     // use current channel
-    if (channel == 255) {
+    if (channel == CURRENT_WIFI_CHANNEL) {
         uint8_t ch;
+#if defined ESP32
         wifi_second_chan_t ch2;
         esp_wifi_get_channel (&ch, &ch2);
+#else
+        ch = WiFi.channel ();
+#endif //ESP32
         DEBUG_INFO ("Current channel: %d", ch);
         channel = ch;
     } else {
         setChannel(channel);
     }
-
+#ifdef ESP32
     DEBUG_INFO ("Starting ESP-NOW in in channel %u interface %s", channel, wifi_if == WIFI_IF_STA ? "STA" : "AP");
+#else
+    DEBUG_INFO ("Starting ESP-NOW in in channel %u", channel);
+#endif //ESP32
+    
     this->channel = channel;
     initComms ();
     // addPeer (ESPNOW_BROADCAST_ADDRESS); // Not needed ?
@@ -46,7 +89,11 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
 
 void QuickEspNow::stop () {
     DEBUG_INFO ("-------------> ESP-NOW STOP");
+#ifdef ESP32
     vTaskDelete (espnowLoopTask);
+#else
+    os_timer_disarm (&espnowLoopTask);
+#endif //ESP32
     esp_now_unregister_recv_cb ();
     esp_now_unregister_send_cb ();
     esp_now_deinit ();
@@ -54,6 +101,7 @@ void QuickEspNow::stop () {
 }
 
 bool QuickEspNow::setChannel (uint8_t channel) {
+#ifdef ESP32
     esp_err_t err_ok;
     if ((err_ok = esp_wifi_set_promiscuous (true))) {
         DEBUG_ERROR ("Error setting promiscuous mode: %s", esp_err_to_name (err_ok));
@@ -67,6 +115,12 @@ bool QuickEspNow::setChannel (uint8_t channel) {
         DEBUG_ERROR ("Error setting promiscuous mode off: %s", esp_err_to_name (err_ok));
         return false;
     }
+#else
+    if (!wifi_set_channel (channel)) {
+        DEBUG_ERROR ("Error setting wifi channel: %u",channel);
+        return false;
+    }
+#endif
     return true;
 }
 
@@ -165,6 +219,7 @@ void QuickEspNow::handle () {
 
 }
 
+#ifdef ESP32
 void QuickEspNow::enableTransmit (bool enable) {
     DEBUG_DBG ("Send esp-now task %s", enable ? "enabled" : "disabled");
     if (enable) {
@@ -177,7 +232,18 @@ void QuickEspNow::enableTransmit (bool enable) {
         }
     }
 }
+#else
+void QuickEspNow::enableTransmit (bool enable) {
+    DEBUG_DBG ("Send esp-now task %s", enable ? "enabled" : "disabled");
+    if (enable) {
+        os_timer_arm (&espnowLoopTask, 20, true);
+    } else {
+        os_timer_disarm (&espnowLoopTask);
+    }
+}
+#endif
 
+#ifdef ESP32
 bool QuickEspNow::addPeer (const uint8_t* peer_addr) {
     esp_now_peer_info_t peer;
     esp_err_t error = ESP_OK;
@@ -215,6 +281,7 @@ bool QuickEspNow::addPeer (const uint8_t* peer_addr) {
     DEBUG_DBG ("Peer " MACSTR " added on channel %u. Result 0x%X %s", MAC2STR (peer_addr), ch, error, esp_err_to_name (error));
     return error == ESP_OK;
 }
+#endif
 
 void QuickEspNow::initComms () {
     if (esp_now_init ()) {
@@ -226,10 +293,17 @@ void QuickEspNow::initComms () {
     esp_now_register_recv_cb (reinterpret_cast<esp_now_recv_cb_t>(rx_cb));
     esp_now_register_send_cb (reinterpret_cast<esp_now_send_cb_t>(tx_cb));
 
+#ifdef ESP32
     xTaskCreateUniversal (runHandle, "espnow_loop", 2048, NULL, 1, &espnowLoopTask, CONFIG_ARDUINO_RUNNING_CORE);
+#else
+    os_timer_setfn (&espnowLoopTask, runHandle, NULL);
+    os_timer_arm (&espnowLoopTask, 20, true);
+#endif // ESP32
+    
 
 }
 
+#ifdef ESP32
 void QuickEspNow::runHandle (void* param) {
     for (;;) {
         quickEspNow.handle ();
@@ -237,8 +311,13 @@ void QuickEspNow::runHandle (void* param) {
     }
 
 }
+#else
+void QuickEspNow::runHandle (void* param) {
+    quickEspNow.handle ();
+}
+#endif // ESP32
 
-void ICACHE_FLASH_ATTR QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
+void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
     //espnow_frame_format_t* espnow_data = (espnow_frame_format_t*)(data - sizeof (espnow_frame_format_t));
     wifi_promiscuous_pkt_t* promiscuous_pkt = (wifi_promiscuous_pkt_t*)(data - sizeof (wifi_pkt_rx_ctrl_t) - sizeof (espnow_frame_format_t));
     wifi_pkt_rx_ctrl_t* rx_ctrl = &promiscuous_pkt->rx_ctrl;
@@ -248,8 +327,7 @@ void ICACHE_FLASH_ATTR QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uin
         quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi); // rssi should be in dBm but it has added almost 100 dB. Do not know why
     }
 }
-
-void ICACHE_FLASH_ATTR QuickEspNow::tx_cb (uint8_t* mac_addr, uint8_t status) {
+void QuickEspNow::tx_cb (uint8_t* mac_addr, uint8_t status) {
     quickEspNow.readyToSend = true;
     DEBUG_DBG ("-------------- Ready to send: true");
     if (quickEspNow.sentResult) {
@@ -257,6 +335,7 @@ void ICACHE_FLASH_ATTR QuickEspNow::tx_cb (uint8_t* mac_addr, uint8_t status) {
     }
 }
 
+#ifdef ESP32
 uint8_t PeerListClass::get_peer_number () {
     return peer_list.peer_number;
 }
@@ -366,4 +445,5 @@ void PeerListClass::dump_peer_list () {
         }
     }
 }
-#endif
+#endif // UNIT_TEST
+#endif // ESP32

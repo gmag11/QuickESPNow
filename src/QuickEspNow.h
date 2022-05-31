@@ -3,16 +3,31 @@
 
 #include "Arduino.h"
 #include "Comms_hal.h"
+
+#if defined ESP32
 #include "esp_now.h"
 #include "esp_wifi.h"
+#elif defined ESP8266
+#include "espnow.h"
+#include "ESP8266WiFi.h"
+#endif //ESP32
+
 #include "RingBuffer.h"
 
 static const uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const uint8_t MIN_WIFI_CHANNEL = 0;
 static const uint8_t MAX_WIFI_CHANNEL = 14;
+static const uint8_t CURRENT_WIFI_CHANNEL = 255;
 static const size_t ESPNOW_MAX_MESSAGE_LENGTH = 255; ///< @brief Maximum message length
 static const uint8_t ESPNOW_ADDR_LEN = 6; ///< @brief Address length
 static const uint8_t ESPNOW_QUEUE_SIZE = 3; ///< @brief Queue size
+
+#ifdef ESP8266
+#define ESP_NOW_ETH_ALEN 6
+#define ESP_NOW_MAX_DATA_LEN 255
+#define WIFI_IF_STA STATION_IF
+#define WIFI_IF_AP SOFTAP_IF
+#endif //ESP8266
 
 typedef struct {
     uint16_t frame_head;
@@ -41,6 +56,7 @@ typedef struct {
     size_t payload_len; /**< Payload length*/
 } comms_queue_item_t;
 
+#ifdef ESP32
 typedef struct {
     uint8_t mac[ESP_NOW_ETH_ALEN];
     time_t last_msg;
@@ -67,6 +83,7 @@ public:
     void dump_peer_list ();
 #endif
 };
+#endif //ESP32
 
 class QuickEspNow : public Comms_halClass {
 public:
@@ -84,15 +101,23 @@ public:
     bool setChannel (uint8_t channel);
 
 protected:
+#ifdef ESP32
     wifi_interface_t wifi_if;
+    PeerListClass peer_list;
     TaskHandle_t espnowLoopTask;
+#else
+    uint8_t wifi_if;
+    ETSTimer espnowLoopTask;
+#endif //ESP32
+    
     bool readyToSend = true;
     RingBuffer<comms_queue_item_t> out_queue;
     uint8_t channel;
-    PeerListClass peer_list;
 
     void initComms ();
+#ifdef ESP32
     bool addPeer (const uint8_t* peer_addr);
+#endif
     static void runHandle (void* param);
     int32_t sendEspNowMessage (comms_queue_item_t* message);
 

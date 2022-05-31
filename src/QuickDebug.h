@@ -82,7 +82,5 @@ const char* extractFileName (const char* path);
 #define DEBUG_ERROR(...)
 #endif
 
-
-
 #endif
 
