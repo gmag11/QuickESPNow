@@ -10,32 +10,41 @@
 #endif //ESP32
 #include <QuickEspNow.h>
 
-static const String msg = "Hello esp-now";
-static uint8_t addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }; 
+//#defide NOTIFY_DATA
+#define SEND_DATA
+
+// static const String msg = "Hello esp-now";
+static const String msg = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
+
+static uint8_t addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static uint8_t addr_t_display[] = { 0x08, 0x3a, 0xf2, 0x69, 0xc4, 0x04 };
 static uint8_t addr_ttgo[] = { 0xb4, 0xe6, 0x2d, 0x9d, 0xab, 0x15 };
 static uint8_t addr_ttgo_ap[] = { 0xb4, 0xe6, 0x2d, 0x9d, 0xab, 0x16 };
 static uint8_t addr_m5[] = { 0x4c, 0x75, 0x25, 0xac, 0xc8, 0x50 };
 
-bool sent = false;
+bool sent = true;
 bool received = false;
 
+const uint SEND_MSG_MSEC = 2;
+
 //-----------------------
-static const int LED_PIN = 5;
+static const int LED_PIN = 10;
 static const int LED_ON = LOW;
 //-----------------------
 
 void dataSent (uint8_t* address, uint8_t status) {
     sent = true;
-    Serial.printf("Message sent to " MACSTR ", status: %d\n", MAC2STR(address), status);
+    //Serial.printf("Message sent to " MACSTR ", status: %d\n", MAC2STR(address), status);
 }
 
 void dataReceived (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi) {
     digitalWrite (LED_PIN, LED_ON);
+#ifdef NOTIFY_DATA
     Serial.print ("Received: ");
     Serial.printf ("%.*s\n", len, data);
     Serial.printf ("RSSI: %d dBm\n", rssi);
     Serial.printf ("From: " MACSTR "\n", MAC2STR (address));
+#endif //NOTIFY_DATA
     digitalWrite (LED_PIN, !LED_ON);
 }
 
@@ -65,26 +74,22 @@ void setup () {
     //Serial.printf("%s\n", esp_get_idf_version());
 }
 
-void loop() { 
+void loop () {
+#ifdef SEND_DATA
     static time_t lastSend = 60000;
     static unsigned int counter = 0;
 
-    if (millis () - lastSend >= 1000) {
+    if (sent && millis () - lastSend >= SEND_MSG_MSEC) {
         lastSend = millis ();
-        String message = String (msg) + " " + String (counter++);
-        if (!quickEspNow.send (addr_ttgo_ap, (uint8_t*)message.c_str (), message.length ())) {
+        String message = String (msg);// +" " + String (counter++);
+        if (!quickEspNow.send (/*ESPNOW_BROADCAST_ADDRESS*/addr_m5, (uint8_t*)message.c_str (), message.length ())) {
             //Serial.printf (">>>>>>>>>> %ld: Message sent\n", micros());
+            sent = false;
         } else {
             Serial.printf (">>>>>>>>>> %ld: Message not sent\n", micros ());
         }
 
     }
-
-    if (sent){
-        sent = false;
-        //Serial.printf (">>>>>>>>>> %ld: Message send confirmation\n", micros ());
-    }
-    
-    
+#endif //SEND_DATA
 
 }
