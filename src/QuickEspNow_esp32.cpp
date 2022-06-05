@@ -249,7 +249,7 @@ bool QuickEspNow::addPeer (const uint8_t* peer_addr) {
 
 void QuickEspNow::tp_timer_cb (void* param) {
     quickEspNow.calculateDataTP ();
-    DEBUG_WARN ("TxData TP: %.1f kbps, Drop Ratio: %.2f %%, RxDataTP: %.1f kbps",
+    DEBUG_WARN ("TxData TP: %.3f kbps, Drop Ratio: %.2f %%, RxDataTP: %.3f kbps",
                 quickEspNow.txDataTP * 8 / 1000,
                 quickEspNow.txDroppedDataRatio * 100,
                 quickEspNow.rxDataTP * 8 / 1000);
