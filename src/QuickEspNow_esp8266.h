@@ -1,34 +1,27 @@
-#ifndef _QUICK_ESPNOW_ESP32_h
-#define _QUICK_ESPNOW_ESP32_h
+#ifndef _QUICK_ESPNOW_ESP8266_h
+#define _QUICK_ESPNOW_ESP8266_h
 #ifdef ESP8266
 
 #include "Arduino.h"
 #include "Comms_hal.h"
 
-#if defined ESP32
-#include "esp_now.h"
-#include "esp_wifi.h"
-#elif defined ESP8266
 #include "espnow.h"
 #include "ESP8266WiFi.h"
-#endif //ESP32
+#include "RingBuffer.h"
 
-//#include "RingBuffer.h"
-
-static const uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+static uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const uint8_t MIN_WIFI_CHANNEL = 0;
 static const uint8_t MAX_WIFI_CHANNEL = 14;
 static const uint8_t CURRENT_WIFI_CHANNEL = 255;
 static const size_t ESPNOW_MAX_MESSAGE_LENGTH = 255; ///< @brief Maximum message length
 static const uint8_t ESPNOW_ADDR_LEN = 6; ///< @brief Address length
 static const uint8_t ESPNOW_QUEUE_SIZE = 3; ///< @brief Queue size
+static const time_t MEAS_TP_EVERY_MS = 15000; ///< @brief Measurement time period
 
-#ifdef ESP8266
 #define ESP_NOW_ETH_ALEN 6
 #define ESP_NOW_MAX_DATA_LEN 255
 #define WIFI_IF_STA STATION_IF
 #define WIFI_IF_AP SOFTAP_IF
-#endif //ESP8266
 
 typedef struct {
     uint16_t frame_head;
@@ -57,39 +50,11 @@ typedef struct {
     size_t payload_len; /**< Payload length*/
 } comms_queue_item_t;
 
-#ifdef ESP32
-typedef struct {
-    uint8_t mac[ESP_NOW_ETH_ALEN];
-    time_t last_msg;
-    bool active;
-} peer_t;
-typedef struct {
-    uint8_t peer_number;
-    peer_t peer[ESP_NOW_MAX_TOTAL_PEER_NUM];
-} peer_list_t;
-
-class PeerListClass {
-protected:
-    peer_list_t peer_list;
-
-public:
-    bool peer_exists (const uint8_t* mac);
-    peer_t* get_peer (const uint8_t* mac);
-    bool update_peer_use (const uint8_t* mac);
-    bool delete_peer (const uint8_t* mac);
-    uint8_t* delete_peer ();
-    bool add_peer (const uint8_t* mac);
-    uint8_t get_peer_number ();
-#ifdef UNIT_TEST
-    void dump_peer_list ();
-#endif
-};
-#endif //ESP32
 
 class QuickEspNow : public Comms_halClass {
 public:
-    // QuickEspNow () :
-    //     out_queue (ESPNOW_QUEUE_SIZE) {}
+    QuickEspNow () :
+        out_queue (ESPNOW_QUEUE_SIZE) {}
     bool begin (uint8_t channel = 255, uint32_t interface = 0);
     void stop ();
     int32_t send (uint8_t* dstAddress, uint8_t* payload, size_t payload_len);
@@ -102,26 +67,27 @@ public:
     bool setChannel (uint8_t channel);
 
 protected:
-#ifdef ESP32
-    wifi_interface_t wifi_if;
-    PeerListClass peer_list;
-    TaskHandle_t espnowLoopTask;
-#else
     uint8_t wifi_if;
     ETSTimer espnowLoopTask;
-#endif //ESP32
-    
+    ETSTimer dataTPTimer;
+    unsigned long txDataSent = 0;
+    unsigned long rxDataReceived = 0;
+    unsigned long txDataDropped = 0;
+    time_t lastDataTPMeas = 0;
+    //TimerHandle_t dataTPTimer;
+    float txDataTP = 0;
+    float rxDataTP = 0;
+    float txDroppedDataRatio = 0;
+
     bool readyToSend = true;
-    //RingBuffer<comms_queue_item_t> out_queue;
-    QueueHandle_t out_queue;
+    RingBuffer<comms_queue_item_t> out_queue;
     uint8_t channel;
 
     void initComms ();
-#ifdef ESP32
-    bool addPeer (const uint8_t* peer_addr);
-#endif
     static void runHandle (void* param);
+    static void tp_timer_cb (void* param);
     int32_t sendEspNowMessage (comms_queue_item_t* message);
+    void calculateDataTP ();
 
     static void ICACHE_FLASH_ATTR rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len);
     static void ICACHE_FLASH_ATTR tx_cb (uint8_t* mac_addr, uint8_t status);
@@ -129,5 +95,5 @@ protected:
 
 extern QuickEspNow quickEspNow;
 
-#endif //ESP8266
-#endif // _QUICK_ESPNOW_ESP32_h
+#endif // ESP8266
+#endif // _QUICK_ESPNOW_ESP8266_h
