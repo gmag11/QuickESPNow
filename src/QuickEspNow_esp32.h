@@ -13,6 +13,8 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 
+//#define MEAS_TPUT
+
 static uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const uint8_t MIN_WIFI_CHANNEL = 0;
 static const uint8_t MAX_WIFI_CHANNEL = 14;
@@ -95,6 +97,7 @@ protected:
     wifi_interface_t wifi_if;
     PeerListClass peer_list;
     TaskHandle_t espnowLoopTask;
+#ifdef MEAS_TPUT
     unsigned long txDataSent = 0;
     unsigned long rxDataReceived = 0;
     unsigned long txDataDropped = 0;
@@ -104,8 +107,11 @@ protected:
     float rxDataTP = 0;
     float txDroppedDataRatio = 0;
 
+    static void tp_timer_cb (void* param);
+    void calculateDataTP ();
+#endif // MEAS_TPUT
+
     bool readyToSend = true;
-    //RingBuffer<comms_queue_item_t> out_queue;
     QueueHandle_t out_queue;
     SemaphoreHandle_t espnow_send_mutex;
     uint8_t channel;
@@ -113,9 +119,7 @@ protected:
     void initComms ();
     bool addPeer (const uint8_t* peer_addr);
     static void runHandle (void* param);
-    static void tp_timer_cb (void* param);
     int32_t sendEspNowMessage (comms_queue_item_t* message);
-    void calculateDataTP ();
 
     static void ICACHE_FLASH_ATTR rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len);
     static void ICACHE_FLASH_ATTR tx_cb (uint8_t* mac_addr, uint8_t status);

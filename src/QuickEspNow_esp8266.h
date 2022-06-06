@@ -9,6 +9,8 @@
 #include "ESP8266WiFi.h"
 #include "RingBuffer.h"
 
+//#define MEAS_TPUT
+
 static uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const uint8_t MIN_WIFI_CHANNEL = 0;
 static const uint8_t MAX_WIFI_CHANNEL = 14;
@@ -69,15 +71,19 @@ public:
 protected:
     uint8_t wifi_if;
     ETSTimer espnowLoopTask;
+#ifdef MEAS_TPUT
     ETSTimer dataTPTimer;
     unsigned long txDataSent = 0;
     unsigned long rxDataReceived = 0;
     unsigned long txDataDropped = 0;
     time_t lastDataTPMeas = 0;
-    //TimerHandle_t dataTPTimer;
     float txDataTP = 0;
     float rxDataTP = 0;
     float txDroppedDataRatio = 0;
+
+    static void tp_timer_cb (void* param);
+    void calculateDataTP ();
+#endif // MEAS_TPUT
 
     bool readyToSend = true;
     RingBuffer<comms_queue_item_t> out_queue;
@@ -85,9 +91,7 @@ protected:
 
     void initComms ();
     static void runHandle (void* param);
-    static void tp_timer_cb (void* param);
     int32_t sendEspNowMessage (comms_queue_item_t* message);
-    void calculateDataTP ();
 
     static void ICACHE_FLASH_ATTR rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len);
     static void ICACHE_FLASH_ATTR tx_cb (uint8_t* mac_addr, uint8_t status);

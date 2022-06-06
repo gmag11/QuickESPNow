@@ -108,19 +108,23 @@ int32_t QuickEspNow::send (uint8_t* dstAddress, uint8_t* payload, size_t payload
     }
 
     if (out_queue.size () >= ESPNOW_QUEUE_SIZE) {
-        comms_queue_item_t *tempBuffer;
+        comms_queue_item_t* tempBuffer;
         tempBuffer = out_queue.front ();
+#ifdef MEAS_TPUT
         txDataDropped += tempBuffer->payload_len;
+#endif // MEAS_TPUT
         out_queue.pop ();
         DEBUG_DBG ("Message dropped");
     }
-    
+
     memcpy (message.dstAddress, dstAddress, ESP_NOW_ETH_ALEN);
     message.payload_len = payload_len;
     memcpy (message.payload, payload, payload_len);
 
     if (out_queue.push (&message)) {
+#ifdef MEAS_TPUT
         txDataSent += message.payload_len;
+#endif // MEAS_TPUT
         DEBUG_DBG ("--------- %d Comms messages queued. Len: %d", out_queue.size (), payload_len);
         DEBUG_VERBOSE ("--------- Ready to send is %s", readyToSend ? "true" : "false");
         return 0;
@@ -134,6 +138,7 @@ void QuickEspNow::onDataRcvd (comms_hal_rcvd_data dataRcvd) {
     this->dataRcvd = dataRcvd;
 }
 
+#ifdef MEAS_TPUT
 void QuickEspNow::calculateDataTP () {
     time_t measTime = (millis () - lastDataTPMeas);
     lastDataTPMeas = millis ();
@@ -157,6 +162,15 @@ void QuickEspNow::calculateDataTP () {
     }
     txDataDropped = 0;
 }
+
+void QuickEspNow::tp_timer_cb (void* param) {
+    quickEspNow.calculateDataTP ();
+    DEBUG_WARN ("TxData TP: %.3f kbps, Drop Ratio: %.2f %%, RxDataTP: %.3f kbps",
+                quickEspNow.txDataTP * 8 / 1000,
+                quickEspNow.txDroppedDataRatio * 100,
+                quickEspNow.rxDataTP * 8 / 1000);
+}
+#endif // MEAS_TPUT
 
 void QuickEspNow::onDataSent (comms_hal_sent_data sentResult) {
     this->sentResult = sentResult;
@@ -219,14 +233,6 @@ void QuickEspNow::enableTransmit (bool enable) {
     }
 }
 
-void QuickEspNow::tp_timer_cb (void* param) {
-    quickEspNow.calculateDataTP ();
-    DEBUG_WARN ("TxData TP: %.3f kbps, Drop Ratio: %.2f %%, RxDataTP: %.3f kbps",
-                quickEspNow.txDataTP * 8 / 1000,
-                quickEspNow.txDroppedDataRatio * 100,
-                quickEspNow.rxDataTP * 8 / 1000);
-}
-
 void QuickEspNow::initComms () {
     if (esp_now_init ()) {
         DEBUG_ERROR ("Failed to init ESP-NOW");
@@ -246,8 +252,10 @@ void QuickEspNow::initComms () {
     os_timer_setfn (&espnowLoopTask, runHandle, NULL);
     os_timer_arm (&espnowLoopTask, 10, true);
 
+#ifdef MEAS_TPUT
     os_timer_setfn (&dataTPTimer, tp_timer_cb, NULL);
     os_timer_arm (&dataTPTimer, MEAS_TP_EVERY_MS, true);
+#endif // MEAS_TPUT
 
 }
 
@@ -260,7 +268,9 @@ void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
     wifi_promiscuous_pkt_t* promiscuous_pkt = (wifi_promiscuous_pkt_t*)(data - sizeof (wifi_pkt_rx_ctrl_t) - sizeof (espnow_frame_format_t));
     wifi_pkt_rx_ctrl_t* rx_ctrl = &promiscuous_pkt->rx_ctrl;
 
+#ifdef MEAS_TPUT
     quickEspNow.rxDataReceived += len;
+#endif // MEAS_TPUT
     if (quickEspNow.dataRcvd) {
         // quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi - 98); // rssi should be in dBm but it has added almost 100 dB. Do not know why
         quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi); // rssi should be in dBm but it has added almost 100 dB. Do not know why
