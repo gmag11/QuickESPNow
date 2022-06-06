@@ -316,8 +316,9 @@ void QuickEspNow::espnowRxHandle () {
 
 
         if (quickEspNow.dataRcvd) {
+            bool broadcast = ! memcmp (rxMessage->dstAddress, ESPNOW_BROADCAST_ADDRESS, ESP_NOW_ETH_ALEN);
         // quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi - 98); // rssi should be in dBm but it has added almost 100 dB. Do not know why
-            quickEspNow.dataRcvd (rxMessage->srcAddress, rxMessage->payload, rxMessage->payload_len, rxMessage->rssi); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+            quickEspNow.dataRcvd (rxMessage->srcAddress, rxMessage->payload, rxMessage->payload_len, rxMessage->rssi, broadcast); // rssi should be in dBm but it has added almost 100 dB. Do not know why
         }
 
         rxMessage->payload_len = 0;

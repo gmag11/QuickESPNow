@@ -303,8 +303,8 @@ void QuickEspNow::espnowRxHandle () {
         DEBUG_VERBOSE ("Message: %.*s", rxMessage.payload_len, rxMessage.payload);
 
         if (quickEspNow.dataRcvd) {
-    // quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi - 98); // rssi should be in dBm but it has added almost 100 dB. Do not know why
-            quickEspNow.dataRcvd (rxMessage.srcAddress, rxMessage.payload, rxMessage.payload_len, rxMessage.rssi); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+            bool broadcast = !memcmp (rxMessage.dstAddress, ESPNOW_BROADCAST_ADDRESS, ESP_NOW_ETH_ALEN);
+            quickEspNow.dataRcvd (rxMessage.srcAddress, rxMessage.payload, rxMessage.payload_len, rxMessage.rssi, broadcast); // rssi should be in dBm but it has added almost 100 dB. Do not know why
         }
     } else {
         DEBUG_DBG ("No message in queue");
@@ -333,9 +333,9 @@ void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
     message.rssi = rx_ctrl->rssi;
     memcpy (message.dstAddress, espnow_data->destination_address, ESP_NOW_ETH_ALEN);
 
-    if (uxQueueMessagesWaiting (rx_queue) >= ESPNOW_QUEUE_SIZE) {
+    if (uxQueueMessagesWaiting (quickEspNow.rx_queue) >= ESPNOW_QUEUE_SIZE) {
         comms_rx_queue_item_t tempBuffer;
-        xQueueReceive (rx_queue, &tempBuffer, 0);
+        xQueueReceive (quickEspNow.rx_queue, &tempBuffer, 0);
         DEBUG_DBG ("Rx Message dropped");
     }
 #ifdef MEAS_TPUT

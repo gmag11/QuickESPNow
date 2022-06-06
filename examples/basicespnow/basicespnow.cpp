@@ -19,11 +19,12 @@ static uint8_t receiver[] = { 0x12, 0x34, 0x56, 0x78, 0x90, 0x12 };
 
 const unsigned int SEND_MSG_MSEC = 2000;
 
-void dataReceived (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi) {
+void dataReceived (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast) {
     Serial.print ("Received: ");
     Serial.printf ("%.*s\n", len, data);
     Serial.printf ("RSSI: %d dBm\n", rssi);
     Serial.printf ("From: " MACSTR "\n", MAC2STR (address));
+    Serial.printf ("%s\n", broadcast ? "Broadcast" : "Unicast");
 }
 
 void setup () {
