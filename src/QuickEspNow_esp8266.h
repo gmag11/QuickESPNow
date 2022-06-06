@@ -18,10 +18,13 @@ static const uint8_t CURRENT_WIFI_CHANNEL = 255;
 static const size_t ESPNOW_MAX_MESSAGE_LENGTH = 255; ///< @brief Maximum message length
 static const uint8_t ESPNOW_ADDR_LEN = 6; ///< @brief Address length
 static const uint8_t ESPNOW_QUEUE_SIZE = 3; ///< @brief Queue size
+static const int TASK_PERIOD = 10; ///< @brief Rx and Tx tasks period
+#ifdef MEAS_TPUT
 static const time_t MEAS_TP_EVERY_MS = 15000; ///< @brief Measurement time period
+#endif // MEAS_TPUT
 
 #define ESP_NOW_ETH_ALEN 6
-#define ESP_NOW_MAX_DATA_LEN 255
+#define ESP_NOW_MAX_DATA_LEN 250
 #define WIFI_IF_STA STATION_IF
 #define WIFI_IF_AP SOFTAP_IF
 
@@ -50,27 +53,37 @@ typedef struct {
     uint8_t dstAddress[ESPNOW_ADDR_LEN]; /**< Message topic*/
     uint8_t payload[ESPNOW_MAX_MESSAGE_LENGTH]; /**< Message payload*/
     size_t payload_len; /**< Payload length*/
-} comms_queue_item_t;
+} comms_tx_queue_item_t;
 
+typedef struct {
+    uint8_t srcAddress[ESPNOW_ADDR_LEN]; /**< Source Address */
+    uint8_t dstAddress[ESPNOW_ADDR_LEN]; /**< Destination Address */
+    uint8_t payload[ESPNOW_MAX_MESSAGE_LENGTH]; /**< Message payload */
+    size_t payload_len; /**< Payload length */
+    int8_t rssi; /**< RSSI */
+} comms_rx_queue_item_t;
 
 class QuickEspNow : public Comms_halClass {
 public:
     QuickEspNow () :
-        out_queue (ESPNOW_QUEUE_SIZE) {}
+        tx_queue (ESPNOW_QUEUE_SIZE), rx_queue (ESPNOW_QUEUE_SIZE) {}
     bool begin (uint8_t channel = 255, uint32_t interface = 0);
     void stop ();
     int32_t send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len);
+    int32_t sendBcast (uint8_t* payload, size_t payload_len) {
+        return send (ESPNOW_BROADCAST_ADDRESS, payload, payload_len);
+    }
     void onDataRcvd (comms_hal_rcvd_data dataRcvd);
     void onDataSent (comms_hal_sent_data sentResult);
     uint8_t getAddressLength () { return ESPNOW_ADDR_LEN; }
     uint8_t getMaxMessageLength () { return ESPNOW_MAX_MESSAGE_LENGTH; }
-    void handle ();
     void enableTransmit (bool enable);
     bool setChannel (uint8_t channel);
 
 protected:
     uint8_t wifi_if;
-    ETSTimer espnowLoopTask;
+    ETSTimer espnowTxTask;
+    ETSTimer espnowRxTask;
 #ifdef MEAS_TPUT
     ETSTimer dataTPTimer;
     unsigned long txDataSent = 0;
@@ -86,12 +99,17 @@ protected:
 #endif // MEAS_TPUT
 
     bool readyToSend = true;
-    RingBuffer<comms_queue_item_t> out_queue;
+    RingBuffer<comms_tx_queue_item_t> tx_queue;
+    RingBuffer<comms_rx_queue_item_t> rx_queue;
     uint8_t channel;
 
     void initComms ();
-    static void runHandle (void* param);
-    int32_t sendEspNowMessage (comms_queue_item_t* message);
+    static void espnowTxTask_cb (void* param);
+    static void espnowRxTask_cb (void* param);
+    int32_t sendEspNowMessage (comms_tx_queue_item_t* message);
+    void espnowTxHandle ();
+    void espnowRxHandle ();
+
 
     static void ICACHE_FLASH_ATTR rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len);
     static void ICACHE_FLASH_ATTR tx_cb (uint8_t* mac_addr, uint8_t status);

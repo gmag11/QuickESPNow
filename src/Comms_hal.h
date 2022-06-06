@@ -88,11 +88,6 @@ public:
     virtual uint8_t getMaxMessageLength () = 0;
 
     /**
-      * @brief Sends next message in the queue
-      */
-    virtual void handle () = 0;
-
-    /**
       * @brief Enables or disables transmission of queued messages. Used to disable communication during wifi scan
       * @param enable `true` to enable transmission, `false` to disable it
       */

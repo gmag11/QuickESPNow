@@ -79,7 +79,8 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
 
 void QuickEspNow::stop () {
     DEBUG_INFO ("-------------> ESP-NOW STOP");
-    os_timer_disarm (&espnowLoopTask);
+    os_timer_disarm (&espnowTxTask);
+    os_timer_disarm (&espnowRxTask);
     esp_now_unregister_recv_cb ();
     esp_now_unregister_send_cb ();
     esp_now_deinit ();
@@ -95,7 +96,7 @@ bool QuickEspNow::setChannel (uint8_t channel) {
 }
 
 int32_t QuickEspNow::send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len) {
-    comms_queue_item_t message;
+    comms_tx_queue_item_t message;
 
     if (!dstAddress || !payload || !payload_len) {
         DEBUG_WARN ("Parameters error");
@@ -107,13 +108,13 @@ int32_t QuickEspNow::send (const uint8_t* dstAddress, uint8_t* payload, size_t p
         return -1;
     }
 
-    if (out_queue.size () >= ESPNOW_QUEUE_SIZE) {
+    if (tx_queue.size () >= ESPNOW_QUEUE_SIZE) {
 #ifdef MEAS_TPUT
-        comms_queue_item_t* tempBuffer;
-        tempBuffer = out_queue.front ();
+        comms_tx_queue_item_t* tempBuffer;
+        tempBuffer = tx_queue.front ();
         txDataDropped += tempBuffer->payload_len;
 #endif // MEAS_TPUT
-        out_queue.pop ();
+        tx_queue.pop ();
         DEBUG_DBG ("Message dropped");
     }
 
@@ -121,11 +122,11 @@ int32_t QuickEspNow::send (const uint8_t* dstAddress, uint8_t* payload, size_t p
     message.payload_len = payload_len;
     memcpy (message.payload, payload, payload_len);
 
-    if (out_queue.push (&message)) {
+    if (tx_queue.push (&message)) {
 #ifdef MEAS_TPUT
         txDataSent += message.payload_len;
 #endif // MEAS_TPUT
-        DEBUG_DBG ("--------- %d Comms messages queued. Len: %d", out_queue.size (), payload_len);
+        DEBUG_DBG ("--------- %d Comms messages queued. Len: %d", tx_queue.size (), payload_len);
         DEBUG_VERBOSE ("--------- Ready to send is %s", readyToSend ? "true" : "false");
         return 0;
     } else {
@@ -176,7 +177,7 @@ void QuickEspNow::onDataSent (comms_hal_sent_data sentResult) {
     this->sentResult = sentResult;
 }
 
-int32_t QuickEspNow::sendEspNowMessage (comms_queue_item_t* message) {
+int32_t QuickEspNow::sendEspNowMessage (comms_tx_queue_item_t* message) {
     int32_t error;
 
     if (!message) {
@@ -199,13 +200,13 @@ int32_t QuickEspNow::sendEspNowMessage (comms_queue_item_t* message) {
     return error;
 }
 
-void QuickEspNow::handle () {
+void QuickEspNow::espnowTxHandle () {
     if (readyToSend) {
-        //DEBUG_WARN ("Process queue: Elements: %d", out_queue.size ());
-        comms_queue_item_t* message;
-        while (!out_queue.empty ()) {
-            message = out_queue.front ();
-            DEBUG_DBG ("Comms message got from queue. %d left", out_queue.size ());
+        //DEBUG_WARN ("Process queue: Elements: %d", tx_queue.size ());
+        comms_tx_queue_item_t* message;
+        while (!tx_queue.empty ()) {
+            message = tx_queue.front ();
+            DEBUG_DBG ("Comms message got from queue. %d left", tx_queue.size ());
             while (!readyToSend) {
                 delay (1);
             }
@@ -215,8 +216,8 @@ void QuickEspNow::handle () {
                 DEBUG_WARN ("Error sending message to " MACSTR ". Len: %u", MAC2STR (message->dstAddress), message->payload_len);
             }
             message->payload_len = 0;
-            out_queue.pop ();
-            DEBUG_DBG ("Comms message pop. Queue size %d", out_queue.size ());
+            tx_queue.pop ();
+            DEBUG_DBG ("Comms message pop. Queue size %d", tx_queue.size ());
         }
 
     } else {
@@ -227,9 +228,11 @@ void QuickEspNow::handle () {
 void QuickEspNow::enableTransmit (bool enable) {
     DEBUG_DBG ("Send esp-now task %s", enable ? "enabled" : "disabled");
     if (enable) {
-        os_timer_arm (&espnowLoopTask, 20, true);
+        os_timer_arm (&espnowTxTask, TASK_PERIOD, true);
+        os_timer_arm (&espnowRxTask, TASK_PERIOD, true);
     } else {
-        os_timer_disarm (&espnowLoopTask);
+        os_timer_disarm (&espnowTxTask);
+        os_timer_disarm (&espnowRxTask);
     }
 }
 
@@ -249,8 +252,12 @@ void QuickEspNow::initComms () {
     esp_now_register_recv_cb (reinterpret_cast<esp_now_recv_cb_t>(rx_cb));
     esp_now_register_send_cb (reinterpret_cast<esp_now_send_cb_t>(tx_cb));
 
-    os_timer_setfn (&espnowLoopTask, runHandle, NULL);
-    os_timer_arm (&espnowLoopTask, 10, true);
+    os_timer_setfn (&espnowTxTask, espnowTxTask_cb, NULL);
+    os_timer_arm (&espnowTxTask, TASK_PERIOD, true);
+
+    os_timer_setfn (&espnowRxTask, espnowRxTask_cb, NULL);
+    os_timer_arm (&espnowRxTask, TASK_PERIOD, true);
+
 
 #ifdef MEAS_TPUT
     os_timer_setfn (&dataTPTimer, tp_timer_cb, NULL);
@@ -259,23 +266,67 @@ void QuickEspNow::initComms () {
 
 }
 
-void QuickEspNow::runHandle (void* param) {
-    quickEspNow.handle ();
+void QuickEspNow::espnowTxTask_cb (void* param) {
+    quickEspNow.espnowTxHandle ();
 }
 
 void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
-    //espnow_frame_format_t* espnow_data = (espnow_frame_format_t*)(data - sizeof (espnow_frame_format_t));
+    espnow_frame_format_t* espnow_data = (espnow_frame_format_t*)(data - sizeof (espnow_frame_format_t));
     wifi_promiscuous_pkt_t* promiscuous_pkt = (wifi_promiscuous_pkt_t*)(data - sizeof (wifi_pkt_rx_ctrl_t) - sizeof (espnow_frame_format_t));
     wifi_pkt_rx_ctrl_t* rx_ctrl = &promiscuous_pkt->rx_ctrl;
 
+    comms_rx_queue_item_t message;
+
+    DEBUG_DBG ("Received message with RSSI %d from " MACSTR " Len: %u", rx_ctrl->rssi, MAC2STR (mac_addr), len);
+
+    memcpy (message.srcAddress, mac_addr, ESP_NOW_ETH_ALEN);
+    memcpy (message.payload, data, len);
+    message.payload_len = len;
+    message.rssi = rx_ctrl->rssi - 100;
+    memcpy (message.dstAddress, espnow_data->destination_address, ESP_NOW_ETH_ALEN);
+    
+    if (quickEspNow.rx_queue.size () >= ESPNOW_QUEUE_SIZE) {
+        quickEspNow.tx_queue.pop ();
+        DEBUG_DBG ("Rx Message dropped");
+    }
+    
 #ifdef MEAS_TPUT
     quickEspNow.rxDataReceived += len;
 #endif // MEAS_TPUT
-    if (quickEspNow.dataRcvd) {
-        // quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi - 98); // rssi should be in dBm but it has added almost 100 dB. Do not know why
-        quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+
+    if (quickEspNow.rx_queue.push (&message)) {
+        DEBUG_DBG ("Message pushed to queue");
+    } else {
+        DEBUG_WARN ("Error queuing message");
     }
 }
+
+void QuickEspNow::espnowRxTask_cb (void* param) {
+    quickEspNow.espnowRxHandle ();
+}
+
+void QuickEspNow::espnowRxHandle () {
+    comms_rx_queue_item_t *rxMessage;
+
+    if (!rx_queue.empty ()) {
+        rxMessage = rx_queue.front ();
+        DEBUG_DBG ("Comms message got from queue. %d left", rx_queue.size ());
+        DEBUG_VERBOSE ("Received message from " MACSTR " Len: %u", MAC2STR (rxMessage->srcAddress), rxMessage->payload_len);
+        DEBUG_VERBOSE ("Message: %.*s", rxMessage->payload_len, rxMessage->payload);
+
+
+        if (quickEspNow.dataRcvd) {
+        // quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi - 98); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+            quickEspNow.dataRcvd (rxMessage->srcAddress, rxMessage->payload, rxMessage->payload_len, rxMessage->rssi); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+        }
+
+        rxMessage->payload_len = 0;
+        rx_queue.pop ();
+        DEBUG_DBG ("RX Comms message pop. Queue size %d", rx_queue.size ());
+    }
+
+}
+
 void QuickEspNow::tx_cb (uint8_t* mac_addr, uint8_t status) {
     quickEspNow.readyToSend = true;
     DEBUG_DBG ("-------------- Ready to send: true");

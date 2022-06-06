@@ -13,16 +13,18 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 
-//#define MEAS_TPUT
+#define MEAS_TPUT
 
 static uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const uint8_t MIN_WIFI_CHANNEL = 0;
 static const uint8_t MAX_WIFI_CHANNEL = 14;
 static const uint8_t CURRENT_WIFI_CHANNEL = 255;
-static const size_t ESPNOW_MAX_MESSAGE_LENGTH = 255; ///< @brief Maximum message length
+static const size_t ESPNOW_MAX_MESSAGE_LENGTH = 250; ///< @brief Maximum message length
 static const uint8_t ESPNOW_ADDR_LEN = 6; ///< @brief Address length
 static const uint8_t ESPNOW_QUEUE_SIZE = 3; ///< @brief Queue size
+#ifdef MEAS_TPUT
 static const time_t MEAS_TP_EVERY_MS = 15000; ///< @brief Measurement time period
+#endif // MEAS_TPUT
 
 typedef struct {
     uint16_t frame_head;
@@ -49,7 +51,15 @@ typedef struct {
     uint8_t dstAddress[ESPNOW_ADDR_LEN]; /**< Message topic*/
     uint8_t payload[ESPNOW_MAX_MESSAGE_LENGTH]; /**< Message payload*/
     size_t payload_len; /**< Payload length*/
-} comms_queue_item_t;
+} comms_tx_queue_item_t;
+
+typedef struct {
+    uint8_t srcAddress[ESPNOW_ADDR_LEN]; /**< Source Address */
+    uint8_t dstAddress[ESPNOW_ADDR_LEN]; /**< Destination Address */
+    uint8_t payload[ESPNOW_MAX_MESSAGE_LENGTH]; /**< Message payload */
+    size_t payload_len; /**< Payload length */
+    int8_t rssi; /**< RSSI */
+} comms_rx_queue_item_t;
 
 typedef struct {
     uint8_t mac[ESP_NOW_ETH_ALEN];
@@ -81,22 +91,25 @@ public:
 class QuickEspNow : public Comms_halClass {
 public:
     // QuickEspNow () :
-    //     out_queue (ESPNOW_QUEUE_SIZE) {}
+    //     tx_queue (ESPNOW_QUEUE_SIZE) {}
     bool begin (uint8_t channel = 255, uint32_t interface = 0);
     void stop ();
     int32_t send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len);
+    int32_t sendBcast (uint8_t* payload, size_t payload_len) {
+        return send (ESPNOW_BROADCAST_ADDRESS, payload, payload_len);
+    }
     void onDataRcvd (comms_hal_rcvd_data dataRcvd);
     void onDataSent (comms_hal_sent_data sentResult);
     uint8_t getAddressLength () { return ESPNOW_ADDR_LEN; }
     uint8_t getMaxMessageLength () { return ESPNOW_MAX_MESSAGE_LENGTH; }
-    void handle ();
     void enableTransmit (bool enable);
     bool setChannel (uint8_t channel);
 
 protected:
     wifi_interface_t wifi_if;
     PeerListClass peer_list;
-    TaskHandle_t espnowLoopTask;
+    TaskHandle_t espnowTxTask;
+    TaskHandle_t espnowRxTask;
 #ifdef MEAS_TPUT
     unsigned long txDataSent = 0;
     unsigned long rxDataReceived = 0;
@@ -112,14 +125,19 @@ protected:
 #endif // MEAS_TPUT
 
     bool readyToSend = true;
-    QueueHandle_t out_queue;
-    SemaphoreHandle_t espnow_send_mutex;
+    QueueHandle_t tx_queue;
+    QueueHandle_t rx_queue;
+    //SemaphoreHandle_t espnow_send_mutex;
     uint8_t channel;
 
     void initComms ();
     bool addPeer (const uint8_t* peer_addr);
-    static void runHandle (void* param);
-    int32_t sendEspNowMessage (comms_queue_item_t* message);
+    static void espnowTxTask_cb (void* param);
+    int32_t sendEspNowMessage (comms_tx_queue_item_t* message);
+    void espnowTxHandle ();
+
+    static void espnowRxTask_cb (void* param);
+    void espnowRxHandle ();
 
     static void ICACHE_FLASH_ATTR rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len);
     static void ICACHE_FLASH_ATTR tx_cb (uint8_t* mac_addr, uint8_t status);

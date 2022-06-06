@@ -48,7 +48,8 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
 
 void QuickEspNow::stop () {
     DEBUG_INFO ("-------------> ESP-NOW STOP");
-    vTaskDelete (espnowLoopTask);
+    vTaskDelete (espnowTxTask);
+    vTaskDelete (espnowRxTask);
     esp_now_unregister_recv_cb ();
     esp_now_unregister_send_cb ();
     esp_now_deinit ();
@@ -73,7 +74,7 @@ bool QuickEspNow::setChannel (uint8_t channel) {
 }
 
 int32_t QuickEspNow::send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len) {
-    comms_queue_item_t message;
+    comms_tx_queue_item_t message;
 
     if (!dstAddress || !payload || !payload_len) {
         DEBUG_WARN ("Parameters error");
@@ -85,9 +86,9 @@ int32_t QuickEspNow::send (const uint8_t* dstAddress, uint8_t* payload, size_t p
         return -1;
     }
 
-    if (uxQueueMessagesWaiting (out_queue) >= ESPNOW_QUEUE_SIZE) {
-        comms_queue_item_t tempBuffer;
-        xQueueReceive (out_queue, &tempBuffer, 0);
+    if (uxQueueMessagesWaiting (tx_queue) >= ESPNOW_QUEUE_SIZE) {
+        comms_tx_queue_item_t tempBuffer;
+        xQueueReceive (tx_queue, &tempBuffer, 0);
 #ifdef MEAS_TPUT
         txDataDropped += tempBuffer.payload_len;
 #endif // MEAS_TPUT
@@ -97,11 +98,11 @@ int32_t QuickEspNow::send (const uint8_t* dstAddress, uint8_t* payload, size_t p
     message.payload_len = payload_len;
     memcpy (message.payload, payload, payload_len);
 
-    if (xQueueSend (out_queue, &message, pdMS_TO_TICKS (10))) {
+    if (xQueueSend (tx_queue, &message, pdMS_TO_TICKS (10))) {
 #ifdef MEAS_TPUT
         txDataSent += message.payload_len;
 #endif // MEAS_TPUT
-        DEBUG_DBG ("--------- %d Comms messages queued. Len: %d", uxQueueMessagesWaiting (out_queue), payload_len);
+        DEBUG_DBG ("--------- %d Comms messages queued. Len: %d", uxQueueMessagesWaiting (tx_queue), payload_len);
         DEBUG_VERBOSE ("--------- Ready to send is %s", readyToSend ? "true" : "false");
         return 0;
     } else {
@@ -153,7 +154,7 @@ void QuickEspNow::onDataSent (comms_hal_sent_data sentResult) {
     this->sentResult = sentResult;
 }
 
-int32_t QuickEspNow::sendEspNowMessage (comms_queue_item_t* message) {
+int32_t QuickEspNow::sendEspNowMessage (comms_tx_queue_item_t* message) {
     int32_t error;
 
     if (!message) {
@@ -188,12 +189,12 @@ int32_t QuickEspNow::sendEspNowMessage (comms_queue_item_t* message) {
     return error;
 }
 
-void QuickEspNow::handle () {
+void QuickEspNow::espnowTxHandle () {
     if (readyToSend) {
-    //DEBUG_WARN ("Process queue: Elements: %d", out_queue.size ());
-        comms_queue_item_t message;
-        while (xQueueReceive (out_queue, &message, pdMS_TO_TICKS (1000))) {
-            DEBUG_DBG ("Comms message got from queue. %d left", uxQueueMessagesWaiting (out_queue));
+    //DEBUG_WARN ("Process queue: Elements: %d", tx_queue.size ());
+        comms_tx_queue_item_t message;
+        while (xQueueReceive (tx_queue, &message, pdMS_TO_TICKS (1000))) {
+            DEBUG_DBG ("Comms message got from queue. %d left", uxQueueMessagesWaiting (tx_queue));
             while (!readyToSend) {
                 delay (1);
             }
@@ -203,7 +204,7 @@ void QuickEspNow::handle () {
                 DEBUG_WARN ("Error sending message to " MACSTR ". Len: %u", MAC2STR (message.dstAddress), message.payload_len);
             }
         //message.payload_len = 0;
-            DEBUG_DBG ("Comms message pop. Queue size %d", uxQueueMessagesWaiting (out_queue));
+            DEBUG_DBG ("Comms message pop. Queue size %d", uxQueueMessagesWaiting (tx_queue));
         }
 
     } else {
@@ -214,12 +215,14 @@ void QuickEspNow::handle () {
 void QuickEspNow::enableTransmit (bool enable) {
     DEBUG_DBG ("Send esp-now task %s", enable ? "enabled" : "disabled");
     if (enable) {
-        if (espnowLoopTask) {
-            vTaskResume (espnowLoopTask);
+        if (espnowTxTask_cb) {
+            vTaskResume (espnowTxTask);
+            vTaskResume (espnowRxTask);
         }
     } else {
-        if (espnowLoopTask) {
-            vTaskSuspend (espnowLoopTask);
+        if (espnowTxTask_cb) {
+            vTaskSuspend (espnowTxTask);
+            vTaskSuspend (espnowRxTask);
         }
     }
 }
@@ -272,36 +275,78 @@ void QuickEspNow::initComms () {
     esp_now_register_recv_cb (reinterpret_cast<esp_now_recv_cb_t>(rx_cb));
     esp_now_register_send_cb (reinterpret_cast<esp_now_send_cb_t>(tx_cb));
 
-    espnow_send_mutex = xSemaphoreCreateMutex ();
-    out_queue = xQueueCreate (ESPNOW_QUEUE_SIZE, sizeof (comms_queue_item_t));
-    xTaskCreateUniversal (runHandle, "espnow_loop", 8 * 1024, NULL, 1, &espnowLoopTask, CONFIG_ARDUINO_RUNNING_CORE);
+    tx_queue = xQueueCreate (ESPNOW_QUEUE_SIZE, sizeof (comms_tx_queue_item_t));
+    xTaskCreateUniversal (espnowTxTask_cb, "espnow_loop", 8 * 1024, NULL, 1, &espnowTxTask, CONFIG_ARDUINO_RUNNING_CORE);
+
+    rx_queue = xQueueCreate (ESPNOW_QUEUE_SIZE, sizeof (comms_rx_queue_item_t));
+    xTaskCreateUniversal (espnowRxTask_cb, "receive_handle", 4 * 1024, NULL, 1, &espnowRxTask, CONFIG_ARDUINO_RUNNING_CORE);
+    
 #ifdef MEAS_TPUT
     dataTPTimer = xTimerCreate ("espnow_tp_timer", pdMS_TO_TICKS (MEAS_TP_EVERY_MS), pdTRUE, NULL, tp_timer_cb);
     xTimerStart (dataTPTimer, 0);
 #endif // MEAS_TPUT
 }
 
-void QuickEspNow::runHandle (void* param) {
+void QuickEspNow::espnowTxTask_cb (void* param) {
     for (;;) {
-        quickEspNow.handle ();
-        //vTaskDelay (1 / portTICK_PERIOD_MS);
+        quickEspNow.espnowTxHandle ();
     }
 
+}
+
+void QuickEspNow::espnowRxHandle () {
+    comms_rx_queue_item_t rxMessage;
+
+    if (xQueueReceive (rx_queue, &rxMessage, pdMS_TO_TICKS (10000))) {
+        DEBUG_DBG ("Comms message got from queue. %d left", uxQueueMessagesWaiting (rx_queue));
+        DEBUG_VERBOSE ("Received message from " MACSTR " Len: %u", MAC2STR (rxMessage.srcAddress), rxMessage.payload_len);
+        DEBUG_VERBOSE ("Message: %.*s", rxMessage.payload_len, rxMessage.payload);
+
+        if (quickEspNow.dataRcvd) {
+    // quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi - 98); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+            quickEspNow.dataRcvd (rxMessage.srcAddress, rxMessage.payload, rxMessage.payload_len, rxMessage.rssi); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+        }
+    } else {
+        DEBUG_DBG ("No message in queue");
+    }
+
+}
+
+void QuickEspNow::espnowRxTask_cb (void* param) {
+    for (;;) {
+        quickEspNow.espnowRxHandle ();
+    }
 }
 
 void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
-    //espnow_frame_format_t* espnow_data = (espnow_frame_format_t*)(data - sizeof (espnow_frame_format_t));
+    espnow_frame_format_t* espnow_data = (espnow_frame_format_t*)(data - sizeof (espnow_frame_format_t));
     wifi_promiscuous_pkt_t* promiscuous_pkt = (wifi_promiscuous_pkt_t*)(data - sizeof (wifi_pkt_rx_ctrl_t) - sizeof (espnow_frame_format_t));
     wifi_pkt_rx_ctrl_t* rx_ctrl = &promiscuous_pkt->rx_ctrl;
 
+    comms_rx_queue_item_t message;
+
+    DEBUG_DBG ("Received message with RSSI %d from " MACSTR " Len: %u", rx_ctrl->rssi, MAC2STR (mac_addr), len);
+    
+    memcpy (message.srcAddress, mac_addr, ESP_NOW_ETH_ALEN);
+    memcpy (message.payload, data, len);
+    message.payload_len = len;
+    message.rssi = rx_ctrl->rssi;
+    memcpy (message.dstAddress, espnow_data->destination_address, ESP_NOW_ETH_ALEN);
+
+    if (uxQueueMessagesWaiting (rx_queue) >= ESPNOW_QUEUE_SIZE) {
+        comms_rx_queue_item_t tempBuffer;
+        xQueueReceive (rx_queue, &tempBuffer, 0);
+        DEBUG_DBG ("Rx Message dropped");
+    }
 #ifdef MEAS_TPUT
     quickEspNow.rxDataReceived += len;
 #endif // MEAS_TPUT
-    if (quickEspNow.dataRcvd) {
-        // quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi - 98); // rssi should be in dBm but it has added almost 100 dB. Do not know why
-        quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+    
+    if (!xQueueSend (quickEspNow.rx_queue, &message, pdMS_TO_TICKS (100))) {
+        DEBUG_INFO ("Error sending message to queue");
     }
 }
+
 void QuickEspNow::tx_cb (uint8_t* mac_addr, uint8_t status) {
     quickEspNow.readyToSend = true;
     DEBUG_DBG ("-------------- Ready to send: true");
