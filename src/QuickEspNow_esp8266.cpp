@@ -94,7 +94,7 @@ bool QuickEspNow::setChannel (uint8_t channel) {
     return true;
 }
 
-int32_t QuickEspNow::send (uint8_t* dstAddress, uint8_t* payload, size_t payload_len) {
+int32_t QuickEspNow::send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len) {
     comms_queue_item_t message;
 
     if (!dstAddress || !payload || !payload_len) {
@@ -108,9 +108,9 @@ int32_t QuickEspNow::send (uint8_t* dstAddress, uint8_t* payload, size_t payload
     }
 
     if (out_queue.size () >= ESPNOW_QUEUE_SIZE) {
+#ifdef MEAS_TPUT
         comms_queue_item_t* tempBuffer;
         tempBuffer = out_queue.front ();
-#ifdef MEAS_TPUT
         txDataDropped += tempBuffer->payload_len;
 #endif // MEAS_TPUT
         out_queue.pop ();

@@ -3,18 +3,12 @@
 #include <QuickEspNow.h>
 #include <esp_wifi.h>
 
-static const String msg = "Hello esp-now from TTGO";
-static uint8_t addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }; 
-static uint8_t addr_t_display[] = { 0x08, 0x3a, 0xf2, 0x69, 0xc4, 0x04 };
-static uint8_t addr_ttgo[] = { 0xb4, 0xe6, 0x2d, 0x9d, 0xab, 0x15 };
+static const String msg = "Hello esp-now!";
 
-bool sent = false;
-bool received = false;
+static uint8_t receiver[] = { 0x12, 0x34, 0x56, 0x78, 0x90, 0x12 };
 
-void dataSent (uint8_t* address, uint8_t status) {
-    sent = true;
-    Serial.printf("Message sent to " MACSTR ", status: %d\n", MAC2STR(address), status);
-}
+#define DEST_ADDR receiver
+//#define DEST_ADDR ESPNOW_BROADCAST_ADDRESS 
 
 void dataReceived (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi) {
     Serial.print ("Received: ");
@@ -37,7 +31,6 @@ void setup () {
     quickEspNow.begin (); // Use no parameters to start ESP-NOW on same channel as WiFi, in STA mode
     quickEspNow.onDataSent (dataSent);
     quickEspNow.onDataRcvd (dataReceived);
-    //Serial.printf("%s\n", esp_get_idf_version());
 }
 
 void loop() { 
@@ -54,12 +47,5 @@ void loop() {
         }
 
     }
-
-    if (sent){
-        sent = false;
-        //Serial.printf (">>>>>>>>>> %ld: Message send confirmation\n", micros ());
-    }
-    
-    
 
 }

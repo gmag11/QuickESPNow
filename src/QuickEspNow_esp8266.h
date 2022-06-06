@@ -11,7 +11,7 @@
 
 //#define MEAS_TPUT
 
-static uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+static const uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const uint8_t MIN_WIFI_CHANNEL = 0;
 static const uint8_t MAX_WIFI_CHANNEL = 14;
 static const uint8_t CURRENT_WIFI_CHANNEL = 255;
@@ -59,7 +59,7 @@ public:
         out_queue (ESPNOW_QUEUE_SIZE) {}
     bool begin (uint8_t channel = 255, uint32_t interface = 0);
     void stop ();
-    int32_t send (uint8_t* dstAddress, uint8_t* payload, size_t payload_len);
+    int32_t send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len);
     void onDataRcvd (comms_hal_rcvd_data dataRcvd);
     void onDataSent (comms_hal_sent_data sentResult);
     uint8_t getAddressLength () { return ESPNOW_ADDR_LEN; }

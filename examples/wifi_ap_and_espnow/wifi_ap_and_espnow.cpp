@@ -36,11 +36,6 @@ void setup () {
         Serial.println ("WiFi access point not started");
     }
     
-    // WiFi.begin ("ssid", "pass");
-    // while (WiFi.status () != WL_CONNECTED) {
-    //     delay (500);
-    //     Serial.print (".");
-    // }
     uint8_t protocol_bitmap;
     //esp_wifi_set_protocol (WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
     // esp_err_t error = esp_wifi_get_protocol (WIFI_IF_AP, &protocol_bitmap);

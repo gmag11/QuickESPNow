@@ -84,7 +84,7 @@ public:
     //     out_queue (ESPNOW_QUEUE_SIZE) {}
     bool begin (uint8_t channel = 255, uint32_t interface = 0);
     void stop ();
-    int32_t send (uint8_t* dstAddress, uint8_t* payload, size_t payload_len);
+    int32_t send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len);
     void onDataRcvd (comms_hal_rcvd_data dataRcvd);
     void onDataSent (comms_hal_sent_data sentResult);
     uint8_t getAddressLength () { return ESPNOW_ADDR_LEN; }
