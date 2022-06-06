@@ -31,48 +31,47 @@
 
 #ifdef ESP8266
 const char* extractFileName (const char* path);
-#define DEBUG_LINE_PREFIX() DEBUG_ESP_PORT.printf_P (PSTR("[%lu][H:%5lu][%s:%d] %s() | "),millis(),(unsigned long)ESP.getFreeHeap(),extractFileName(__FILE__),__LINE__,__FUNCTION__)
+#define DEBUG_LINE_PREFIX(TAG) DEBUG_ESP_PORT.printf_P (PSTR("[%6lu][H:%5lu][%s:%d] %s(): ["),millis(),(unsigned long)ESP.getFreeHeap(),extractFileName(__FILE__),__LINE__,__FUNCTION__); DEBUG_ESP_PORT.printf_P(TAG); DEBUG_ESP_PORT.printf_P("] ");
 #endif
 
 #ifdef DEBUG_ESP_PORT
 
 #ifdef ESP8266
 #if DEBUG_LEVEL >= VERBOSE
-#define DEBUG_VERBOSE(text,...) DEBUG_ESP_PORT.print("V ");DEBUG_LINE_PREFIX();DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
+#define DEBUG_VERBOSE(TAG,text,...) DEBUG_ESP_PORT.print("V ");DEBUG_LINE_PREFIX(TAG);DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
 #else
 #define DEBUG_VERBOSE(...)
 #endif
 
 #if DEBUG_LEVEL >= DBG
-#define DEBUG_DBG(text,...) DEBUG_ESP_PORT.print("D ");DEBUG_LINE_PREFIX(); DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
+#define DEBUG_DBG(TAG,text,...) DEBUG_ESP_PORT.print("D ");DEBUG_LINE_PREFIX(TAG); DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
 #else
 #define DEBUG_DBG(...)
 #endif
 
 #if DEBUG_LEVEL >= INFO
-#define DEBUG_INFO(text,...) DEBUG_ESP_PORT.print("I ");DEBUG_LINE_PREFIX();DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
+#define DEBUG_INFO(TAG,text,...) DEBUG_ESP_PORT.print("I ");DEBUG_LINE_PREFIX(TAG);DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
 #else
 #define DEBUG_INFO(...)
 #endif
 
 #if DEBUG_LEVEL >= WARN
-#define DEBUG_WARN(text,...) DEBUG_ESP_PORT.print("W ");DEBUG_LINE_PREFIX();DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
+#define DEBUG_WARN(TAG,text,...) DEBUG_ESP_PORT.print("W ");DEBUG_LINE_PREFIX(TAG);DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
 #else
 #define DEBUG_WARN(...)
 #endif
 
 #if DEBUG_LEVEL >= ERROR
-#define DEBUG_ERROR(text,...) DEBUG_ESP_PORT.print("E ");DEBUG_LINE_PREFIX();DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
+#define DEBUG_ERROR(TAG,text,...) DEBUG_ESP_PORT.print("E ");DEBUG_LINE_PREFIX(TAG);DEBUG_ESP_PORT.printf_P(PSTR(text),##__VA_ARGS__);DEBUG_ESP_PORT.println()
 #else
 #define DEBUG_ERROR(...)
 #endif
 #elif defined ESP32
-#define DEFAULT_LOG_TAG "QuickDebug"
-#define DEBUG_VERBOSE(format,...) ESP_LOGV (DEFAULT_LOG_TAG,"%d Heap: %6d. " format, millis(), ESP.getFreeHeap(), ##__VA_ARGS__)
-#define DEBUG_DBG(format,...) ESP_LOGD (DEFAULT_LOG_TAG,"%d Heap: %6d " format, millis(), ESP.getFreeHeap(), ##__VA_ARGS__)
-#define DEBUG_INFO(format,...) ESP_LOGI (DEFAULT_LOG_TAG,"%d Heap: %6d " format, millis(), ESP.getFreeHeap(), ##__VA_ARGS__)
-#define DEBUG_WARN(format,...) ESP_LOGW (DEFAULT_LOG_TAG,"%d Heap: %6d " format, millis(), ESP.getFreeHeap(), ##__VA_ARGS__)
-#define DEBUG_ERROR(format,...) ESP_LOGE (DEFAULT_LOG_TAG,"%d Heap: %6d " format, millis(), ESP.getFreeHeap(), ##__VA_ARGS__)
+#define DEBUG_VERBOSE(TAG,format,...) ESP_LOGV (TAG,"Heap: %6d. " format, ESP.getFreeHeap(), ##__VA_ARGS__)
+#define DEBUG_DBG(TAG,format,...) ESP_LOGD (TAG,"Heap: %6d " format, ESP.getFreeHeap(), ##__VA_ARGS__)
+#define DEBUG_INFO(TAG,format,...) ESP_LOGI (TAG,"Heap: %6d " format, ESP.getFreeHeap(), ##__VA_ARGS__)
+#define DEBUG_WARN(TAG,format,...) ESP_LOGW (TAG,"Heap: %6d " format, ESP.getFreeHeap(), ##__VA_ARGS__)
+#define DEBUG_ERROR(TAG,format,...) ESP_LOGE (TAG,"Heap: %6d " format, ESP.getFreeHeap(), ##__VA_ARGS__)
 #endif
 #else
 #define DEBUG_VERBOSE(...)

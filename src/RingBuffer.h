@@ -72,8 +72,8 @@ public:
       */
     bool push (Telement* item) {
         bool wasFull = isFull ();
-        DEBUG_DBG ("Add element. Buffer was %s", wasFull ? "full" : "not full");
-        DEBUG_DBG ("Before -- > ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
+        DEBUG_DBG (TAG, "Add element. Buffer was %s", wasFull ? "full" : "not full");
+        DEBUG_DBG (TAG, "Before -- > ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
 #ifdef ESP32
         portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
         portENTER_CRITICAL (&myMutex);
@@ -95,7 +95,7 @@ public:
 #ifdef ESP32
         portEXIT_CRITICAL (&myMutex);
 #endif
-        DEBUG_DBG ("After -- > ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
+        DEBUG_DBG (TAG, "After -- > ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
         return !wasFull;
     }
 
@@ -105,8 +105,8 @@ public:
       */
     bool pop () {
         bool wasEmpty = empty ();
-        DEBUG_DBG ("Remove element. Buffer was %s", wasEmpty ? "empty" : "not empty");
-        DEBUG_DBG ("Before -- > ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
+        DEBUG_DBG (TAG, "Remove element. Buffer was %s", wasEmpty ? "empty" : "not empty");
+        DEBUG_DBG (TAG, "Before -- > ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
         if (!wasEmpty) {
             readIndex++;
             if (readIndex >= maxSize) {
@@ -114,7 +114,7 @@ public:
             }
             numElements--;
         }
-        DEBUG_DBG ("After -- > ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
+        DEBUG_DBG (TAG, "After -- > ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
         return !wasEmpty;
     }
 
@@ -123,7 +123,7 @@ public:
       * @return Returns pointer to element. If buffer was empty before calling this method it returns `NULL`
       */
     Telement* front () {
-        DEBUG_DBG ("Read element. ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
+        DEBUG_DBG (TAG, "Read element. ReadIdx: %d. WriteIdx: %d. Size: %d", readIndex, writeIndex, numElements);
         if (!empty ()) {
             return &(buffer[readIndex]);
         } else {

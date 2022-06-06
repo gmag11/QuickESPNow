@@ -13,7 +13,7 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 
-#define MEAS_TPUT
+//#define MEAS_TPUT
 
 static uint8_t ESPNOW_BROADCAST_ADDRESS[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const uint8_t MIN_WIFI_CHANNEL = 0;
