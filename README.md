@@ -12,10 +12,10 @@ This library pretends to hide all that restrictions so that it can be used with 
 
 Besides, it removes some limitations:
 
-- No more 20 devices limit. You can use ESP-NOW with any number of devices. Library takes control of peer registration and makes it transparent to you.
+- No more 20 devices limit. You can use ESP-NOW with **any number of devices**. Library takes control of peer registration and makes it transparent to you.
 - Channel selection is not required for WiFi coexistence.
 - No need to assign a role to each device. Just use it for peer to peer communication.
-- RSSI information of every message.
+- **RSSI** information of every message.
 - Receiver can distiguish between broadcast and unicast messages.
 - Tested maximum througput, about 1500 kbps continuous with default parameters.
 - Encryption is not supported. Usage of ESP-NOW encryption restrict system to 6 devices. You can implement data encryption in a higher layer.
