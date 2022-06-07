@@ -49,9 +49,9 @@ void loop() {
         lastSend = millis ();
         String message = String (msg) + " " + String (counter++);
         if (!quickEspNow.send (DEST_ADDR, (uint8_t*)message.c_str (), message.length ())) {
-            //Serial.printf (">>>>>>>>>> %ld: Message sent\n", micros());
+            Serial.printf (">>>>>>>>>> Message sent\n");
         } else {
-            Serial.printf (">>>>>>>>>> %ld: Message not sent\n", micros ());
+            Serial.printf (">>>>>>>>>> Message not sent\n");
         }
 
     }

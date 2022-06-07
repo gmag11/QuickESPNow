@@ -37,34 +37,11 @@ void setup () {
         Serial.println ("WiFi access point not started");
     }
 
-    uint8_t protocol_bitmap;
-    //esp_wifi_set_protocol (WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
-    // esp_err_t error = esp_wifi_get_protocol (WIFI_IF_AP, &protocol_bitmap);
-    // if (error != ESP_OK) {
-    //     Serial.printf ("esp_wifi_get_protocol failed: %d\n", error);
-    // }
-    // else {
-    //     Serial.printf ("Protocol bitmap: %d\n", protocol_bitmap);
-    //     if (protocol_bitmap & WIFI_PROTOCOL_11B) {
-    //         Serial.println ("Protocol: 802.11b");
-    //     }
-    //     if (protocol_bitmap & WIFI_PROTOCOL_11G) {
-    //         Serial.println ("Protocol: 802.11g");
-    //     }
-    //     if (protocol_bitmap & WIFI_PROTOCOL_11N) {
-    //         Serial.println ("Protocol: 802.11n");
-    //     }
-    //     if (protocol_bitmap & WIFI_PROTOCOL_LR) {
-    //         Serial.println ("Protocol: Low Rate");
-    //     }
-    // }
-
     Serial.printf ("Started AP %s in channel %d\n", WiFi.softAPSSID ().c_str (), WiFi.channel ());
     Serial.printf ("IP address: %s\n", WiFi.softAPIP ().toString ().c_str ());
     Serial.printf ("MAC address: %s\n", WiFi.softAPmacAddress ().c_str ());
-    quickEspNow.begin (CURRENT_WIFI_CHANNEL, WIFI_IF_AP); // Use no parameters to start ESP-NOW on same channel as WiFi, in STA mode
+    quickEspNow.begin (CURRENT_WIFI_CHANNEL, WIFI_IF_AP); // Same channel must be used for both AP and ESP-NOW
     quickEspNow.onDataRcvd (dataReceived);
-    //Serial.printf("%s\n", esp_get_idf_version());
 }
 
 void loop () {
@@ -75,9 +52,9 @@ void loop () {
         lastSend = millis ();
         String message = String (msg) + " " + String (counter++);
         if (!quickEspNow.send (DEST_ADDR, (uint8_t*)message.c_str (), message.length ())) {
-            //Serial.printf (">>>>>>>>>> %ld: Message sent\n", micros());
+            Serial.printf (">>>>>>>>>> Message sent\n");
         } else {
-            Serial.printf (">>>>>>>>>> %ld: Message not sent\n", micros ());
+            Serial.printf (">>>>>>>>>> Message not sent\n");
         }
 
     }
