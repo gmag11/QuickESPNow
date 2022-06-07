@@ -1,7 +1,7 @@
 {
   "name": "QuickEspNow",
   "frameworks": "arduino",
-  "version": "0.0.2",
+  "version": "0.5.0",
   "keywords": "esp-now, gateway, node, home",
   "platforms": ["espressif32", "espressif8266"],
   "description": "QuickEspNow is a library for ESP8266/ESP32 that allows you to send data over the ESP-NOW protocol.",
