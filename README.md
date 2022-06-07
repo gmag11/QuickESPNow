@@ -1,5 +1,7 @@
 # Quick ESP-NOW
 
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/gmag11/library/QuickEspNow.svg)](https://registry.platformio.org/libraries/gmag11/QuickEspNow)
+
 ## Introduction
 This is a library for Arduino framework to be used with Espressif ESP8266 and ESP32 series microcontrollers.
 
