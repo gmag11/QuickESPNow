@@ -1,14 +1,22 @@
 #include <Arduino.h>
+#if defined ESP32
 #include <WiFi.h>
-#include <QuickEspNow.h>
 #include <esp_wifi.h>
+#elif defined ESP8266
+#include <ESP8266WiFi.h>
+#define WIFI_MODE_STA WIFI_STA 
+#define WIFI_MODE_AP WIFI_AP
+#else
+#error "Unsupported platform"
+#endif //ESP32
+#include <QuickEspNow.h>
 
 static const String msg = "Hello esp-now from TTGO";
-static uint8_t addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-static uint8_t addr_t_display[] = { 0x08, 0x3a, 0xf2, 0x69, 0xc4, 0x04 };
-static uint8_t addr_ttgo[] = { 0xb4, 0xe6, 0x2d, 0x9d, 0xab, 0x15 };
-static uint8_t addr_ttgo_ap[] = { 0xb4, 0xe6, 0x2d, 0x9d, 0xab, 0x16 };
-static uint8_t addr_m5[] = { 0x4c, 0x75, 0x25, 0xac, 0xc8, 0x50 };
+
+static uint8_t receiver[] = { 0x12, 0x34, 0x56, 0x78, 0x90, 0x12 };
+
+#define DEST_ADDR receiver
+//#define DEST_ADDR ESPNOW_BROADCAST_ADDRESS 
 
 static const uint8_t CHANNEL = 1;
 
@@ -61,12 +69,12 @@ void setup () {
 
 void loop () {
     static time_t lastSend = 60000;
-    static uint counter = 0;
+    static unsigned int counter = 0;
 
     if (millis () - lastSend >= 1000) {
         lastSend = millis ();
         String message = String (msg) + " " + String (counter++);
-        if (!quickEspNow.send (addr_m5, (uint8_t*)message.c_str (), message.length ())) {
+        if (!quickEspNow.send (DEST_ADDR, (uint8_t*)message.c_str (), message.length ())) {
             //Serial.printf (">>>>>>>>>> %ld: Message sent\n", micros());
         } else {
             Serial.printf (">>>>>>>>>> %ld: Message not sent\n", micros ());
