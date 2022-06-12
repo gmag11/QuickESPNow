@@ -24,6 +24,8 @@ Besides, it removes some limitations:
 
 ## Usage
 
+One just only needs to call begin and set a receivin callback function, if you need to receive data. Then you can use send function to send data to a specific device or use `ESPNOW_BROADCAST_ADDRESS` to send data to all listening devices in the same channel.
+
 ```C++
 void dataReceived (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast) {
     Serial.printf("Received message: %.*s\n", len, data);
@@ -39,7 +41,7 @@ void setup () {
 
 void loop () {
     String message = "Hello, world!";
-    quickEspNow.send (DEST_ADDR, (uint8_t*)message.c_str (), message.length ())) {
+    quickEspNow.send (DEST_ADDR, (uint8_t*)message.c_str (), message.length ()) {
     delay (1000);
 }
 ```
