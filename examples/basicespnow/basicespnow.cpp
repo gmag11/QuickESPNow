@@ -38,8 +38,11 @@ void setup () {
     Serial.printf ("Connected to %s in channel %d\n", WiFi.SSID ().c_str (), WiFi.channel ());
     Serial.printf ("IP address: %s\n", WiFi.localIP ().toString ().c_str ());
     Serial.printf ("MAC address: %s\n", WiFi.macAddress ().c_str ());
-    quickEspNow.begin (1); // If you use no connected WiFi channel should be specified
     quickEspNow.onDataRcvd (dataReceived);
+#ifdef ESP32
+    quickEspNow.setWiFiBandwidth (WIFI_IF_STA, WIFI_BW_HT20); // Only needed for ESP32 in case you need coexistence with ESP8266 in the same network
+#endif //ESP32
+    quickEspNow.begin (1); // If you use no connected WiFi channel should be specified
 }
 
 void loop () {

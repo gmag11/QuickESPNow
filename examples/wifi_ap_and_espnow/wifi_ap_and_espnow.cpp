@@ -40,8 +40,11 @@ void setup () {
     Serial.printf ("Started AP %s in channel %d\n", WiFi.softAPSSID ().c_str (), WiFi.channel ());
     Serial.printf ("IP address: %s\n", WiFi.softAPIP ().toString ().c_str ());
     Serial.printf ("MAC address: %s\n", WiFi.softAPmacAddress ().c_str ());
-    quickEspNow.begin (CURRENT_WIFI_CHANNEL, WIFI_IF_AP); // Same channel must be used for both AP and ESP-NOW
+#ifdef ESP32
+    quickEspNow.setWiFiBandwidth (WIFI_IF_AP, WIFI_BW_HT20); // Only needed for ESP32 in case you need coexistence with ESP8266 in the same network
+#endif //ESP32
     quickEspNow.onDataRcvd (dataReceived);
+    quickEspNow.begin (CURRENT_WIFI_CHANNEL, WIFI_IF_AP); // Same channel must be used for both AP and ESP-NOW
 }
 
 void loop () {

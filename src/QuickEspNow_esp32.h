@@ -105,6 +105,8 @@ public:
     uint8_t getMaxMessageLength () { return ESPNOW_MAX_MESSAGE_LENGTH; }
     void enableTransmit (bool enable);
     bool setChannel (uint8_t channel);
+    bool setWiFiBandwidth (wifi_interface_t iface = WIFI_IF_AP, wifi_bandwidth_t bw = WIFI_BW_HT20);
+
 
 protected:
     wifi_interface_t wifi_if;

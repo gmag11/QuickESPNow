@@ -458,6 +458,14 @@ uint8_t* PeerListClass::delete_peer () {
     return mac;
 }
 
+bool QuickEspNow::setWiFiBandwidth (wifi_interface_t iface, wifi_bandwidth_t bw) {
+    esp_err_t err_ok;
+    if ((err_ok = esp_wifi_set_bandwidth (iface, bw))) {
+        DEBUG_ERROR (TAG, "Error setting wifi bandwidth: %s", esp_err_to_name (err_ok));
+    }
+    return !err_ok;
+}
+
 #ifdef UNIT_TEST
 void PeerListClass::dump_peer_list () {
     Serial.printf ("Number of peers %d\n", peer_list.peer_number);
