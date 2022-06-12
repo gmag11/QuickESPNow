@@ -35,13 +35,13 @@ void setup () {
     Serial.begin (115200);
     WiFi.mode (WIFI_MODE_STA);
     WiFi.disconnect (false);
-    quickEspNow.begin (1); // If you use no connected WiFi channel should be specified
     quickEspNow.onDataRcvd (dataReceived);
+    quickEspNow.begin (1); // If you use no connected WiFi channel should be specified
 }
 
 void loop () {
     String message = "Hello, world!";
-    quickEspNow.send (DEST_ADDR, (uint8_t*)message.c_str (), message.length ()) {
+    quickEspNow.send (DEST_ADDR, (uint8_t*)message.c_str (), message.length ());
     delay (1000);
 }
 ```
