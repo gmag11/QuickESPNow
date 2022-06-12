@@ -3,7 +3,7 @@
 
 #ifdef ESP8266
 
-constexpr auto TAG = "QuickEspNow";
+constexpr auto TAG = "QESPNOW";
 
 typedef struct {
     signed rssi : 8;

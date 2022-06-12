@@ -5,7 +5,9 @@
 
 QuickEspNow quickEspNow;
 
-constexpr auto TAG = "QuickEspNow";
+constexpr auto TAG = "QESPNOW";
+constexpr auto PEERLIST_TAG = "PEERLIST";
+
 
 bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
 
@@ -44,7 +46,6 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
 
     this->channel = channel;
     initComms ();
-    // addPeer (ESPNOW_BROADCAST_ADDRESS); // Not needed ?
     return true;
 }
 
@@ -366,7 +367,7 @@ bool PeerListClass::peer_exists (const uint8_t* mac) {
         if (memcmp (peer_list.peer[i].mac, mac, ESP_NOW_ETH_ALEN) == 0) {
             if (peer_list.peer[i].active) {
                 peer_list.peer[i].last_msg = millis ();
-                DEBUG_VERBOSE (TAG, "Peer " MACSTR " found. Updated last_msg", MAC2STR (mac));
+                DEBUG_VERBOSE (PEERLIST_TAG, "Peer " MACSTR " found. Updated last_msg", MAC2STR (mac));
                 return true;
             }
         }
@@ -378,7 +379,7 @@ peer_t* PeerListClass::get_peer (const uint8_t* mac) {
     for (uint8_t i = 0; i < ESP_NOW_MAX_TOTAL_PEER_NUM; i++) {
         if (memcmp (peer_list.peer[i].mac, mac, ESP_NOW_ETH_ALEN) == 0) {
             if (peer_list.peer[i].active) {
-                DEBUG_VERBOSE (TAG, "Peer " MACSTR " found", MAC2STR (mac));
+                DEBUG_VERBOSE (PEERLIST_TAG, "Peer " MACSTR " found", MAC2STR (mac));
                 return &(peer_list.peer[i]);
             }
         }
@@ -397,13 +398,13 @@ bool PeerListClass::update_peer_use (const uint8_t* mac) {
 
 bool PeerListClass::add_peer (const uint8_t* mac) {
     if (int i = peer_exists (mac)) {
-        DEBUG_VERBOSE (TAG, "Peer " MACSTR " already exists", MAC2STR (mac));
+        DEBUG_VERBOSE (PEERLIST_TAG, "Peer " MACSTR " already exists", MAC2STR (mac));
         return false;
     }
     if (peer_list.peer_number >= ESP_NOW_MAX_TOTAL_PEER_NUM) {
-        //DEBUG_VERBOSE ("Peer list full. Deleting older");
+        //DEBUG_VERBOSE (PEERLIST_TAG, "Peer list full. Deleting older");
 #ifndef UNIT_TEST
-        DEBUG_ERROR (TAG, "Should never happen");
+        DEBUG_ERROR (PEERLIST_TAG, "Should never happen");
 #endif
         return false;
         // delete_peer (); // Delete should happen in higher level
@@ -415,7 +416,7 @@ bool PeerListClass::add_peer (const uint8_t* mac) {
             peer_list.peer[i].active = true;
             peer_list.peer[i].last_msg = millis ();
             peer_list.peer_number++;
-            DEBUG_VERBOSE (TAG, "Peer " MACSTR " added. Total peers = %d", MAC2STR (mac), peer_list.peer_number);
+            DEBUG_VERBOSE (PEERLIST_TAG, "Peer " MACSTR " added. Total peers = %d", MAC2STR (mac), peer_list.peer_number);
             return true;
         }
     }
@@ -428,7 +429,7 @@ bool PeerListClass::delete_peer (const uint8_t* mac) {
     if (peer) {
         peer->active = false;
         peer_list.peer_number--;
-        DEBUG_VERBOSE (TAG, "Peer " MACSTR " deleted. Total peers = %d", MAC2STR (mac), peer_list.peer_number);
+        DEBUG_VERBOSE (PEERLIST_TAG, "Peer " MACSTR " deleted. Total peers = %d", MAC2STR (mac), peer_list.peer_number);
         return true;
     }
     return false;
@@ -444,7 +445,7 @@ uint8_t* PeerListClass::delete_peer () {
             if (peer_list.peer[i].last_msg < oldest_msg || oldest_msg == 0) {
                 oldest_msg = peer_list.peer[i].last_msg;
                 oldest_index = i;
-                DEBUG_VERBOSE (TAG, "Peer " MACSTR " is %d ms old. Deleting", MAC2STR (peer_list.peer[i].mac), oldest_msg);
+                DEBUG_VERBOSE (PEERLIST_TAG, "Peer " MACSTR " is %d ms old. Deleting", MAC2STR (peer_list.peer[i].mac), oldest_msg);
             }
         }
     }
@@ -452,7 +453,7 @@ uint8_t* PeerListClass::delete_peer () {
         peer_list.peer[oldest_index].active = false;
         peer_list.peer_number--;
         mac = peer_list.peer[oldest_index].mac;
-        DEBUG_VERBOSE (TAG, "Peer " MACSTR " deleted. Last message %d ms ago. Total peers = %d", MAC2STR (mac), millis () - peer_list.peer[oldest_index].last_msg, peer_list.peer_number);
+        DEBUG_VERBOSE (PEERLIST_TAG, "Peer " MACSTR " deleted. Last message %d ms ago. Total peers = %d", MAC2STR (mac), millis () - peer_list.peer[oldest_index].last_msg, peer_list.peer_number);
     }
     return mac;
 }

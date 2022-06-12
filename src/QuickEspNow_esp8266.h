@@ -8,6 +8,7 @@
 #include "espnow.h"
 #include "ESP8266WiFi.h"
 #include "RingBuffer.h"
+#include <QuickDebug.h>
 
 //#define MEAS_TPUT
 

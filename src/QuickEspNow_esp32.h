@@ -12,6 +12,7 @@
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
+#include <QuickDebug.h>
 
 //#define MEAS_TPUT
 
