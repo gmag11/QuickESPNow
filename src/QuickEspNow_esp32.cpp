@@ -211,7 +211,18 @@ void QuickEspNow::espnowTxHandle () {
         }
 
     } else {
-        DEBUG_DBG (TAG, "Not ready to send");
+        DEBUG_WARN (TAG, "Not ready to send");
+        if (!confNotRcvd) {
+            confNotRcvd = true;
+            lastNotReadyResult = millis ();
+            return;
+        } else {
+            if (millis () - lastNotReadyResult > 100) {
+                confNotRcvd = false;
+                readyToSend = true;
+                DEBUG_WARN (TAG, "Ready to send reset");
+            }
+        }
     }
 }
 

@@ -128,6 +128,9 @@ protected:
 #endif // MEAS_TPUT
 
     bool readyToSend = true;
+    time_t lastNotReadyResult = 0;
+    bool confNotRcvd = false;
+    
     QueueHandle_t tx_queue;
     QueueHandle_t rx_queue;
     //SemaphoreHandle_t espnow_send_mutex;
