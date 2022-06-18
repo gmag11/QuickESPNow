@@ -250,6 +250,11 @@ bool QuickEspNow::addPeer (const uint8_t* peer_addr) {
         return true;
     }
 
+    if (peer_list.peer_exists (peer_addr)) {
+        DEBUG_VERBOSE (TAG, "Peer already exists");
+        return true;
+    }
+
     if (peer_list.get_peer_number () >= ESP_NOW_MAX_TOTAL_PEER_NUM) {
         DEBUG_VERBOSE (TAG, "Peer list full. Deleting older");
         if (uint8_t* deleted_mac = peer_list.delete_peer ()) {
