@@ -95,8 +95,8 @@ public:
     //     tx_queue (ESPNOW_QUEUE_SIZE) {}
     bool begin (uint8_t channel = 255, uint32_t interface = 0);
     void stop ();
-    int32_t send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len);
-    int32_t sendBcast (uint8_t* payload, size_t payload_len) {
+    int32_t send (const uint8_t* dstAddress, const uint8_t* payload, size_t payload_len);
+    int32_t sendBcast (const uint8_t* payload, size_t payload_len) {
         return send (ESPNOW_BROADCAST_ADDRESS, payload, payload_len);
     }
     void onDataRcvd (comms_hal_rcvd_data dataRcvd);

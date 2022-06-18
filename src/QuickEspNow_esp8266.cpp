@@ -97,7 +97,7 @@ bool QuickEspNow::setChannel (uint8_t channel) {
     return true;
 }
 
-int32_t QuickEspNow::send (const uint8_t* dstAddress, uint8_t* payload, size_t payload_len) {
+int32_t QuickEspNow::send (const uint8_t* dstAddress, const uint8_t* payload, size_t payload_len) {
     comms_tx_queue_item_t message;
 
     if (!dstAddress || !payload || !payload_len) {

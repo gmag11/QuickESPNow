@@ -61,7 +61,7 @@ public:
 	  * @param len Data length in number of bytes
 	  * @return Returns sending status. 0 for success, any other value to indicate an error.
 	  */
-	virtual int32_t send (const uint8_t* da, uint8_t* data, size_t len) = 0;
+	virtual int32_t send (const uint8_t* da, const uint8_t* data, size_t len) = 0;
 
 	/**
 	  * @brief Attach a callback function to be run on every received message
