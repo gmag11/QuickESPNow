@@ -36,7 +36,7 @@ void setup () {
     WiFi.mode (WIFI_MODE_STA);
     WiFi.disconnect (false);
     quickEspNow.onDataRcvd (dataReceived);
-    quickEspNow.begin (1); // If you use no connected WiFi channel should be specified
+    quickEspNow.begin (1); // If you are not connected to WiFi, channel should be specified
 }
 
 void loop () {
