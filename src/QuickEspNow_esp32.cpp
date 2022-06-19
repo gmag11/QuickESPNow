@@ -11,7 +11,9 @@ constexpr auto PEERLIST_TAG = "PEERLIST";
 
 bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
 
-    DEBUG_INFO (TAG,"Channel: %d, Interface: %d", channel, wifi_interface);
+    wifi_second_chan_t ch2 = WIFI_SECOND_CHAN_NONE;
+
+    DEBUG_INFO (TAG, "Channel: %d, Interface: %d", channel, wifi_interface);
     // Set the wifi interface
     switch (wifi_interface) {
     case WIFI_IF_STA:
@@ -35,14 +37,13 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
     // use current channel
     if (channel == CURRENT_WIFI_CHANNEL) {
         uint8_t ch;
-        wifi_second_chan_t ch2;
         esp_wifi_get_channel (&ch, &ch2);
-        DEBUG_INFO (TAG, "Current channel: %d", ch);
         channel = ch;
-    } else {
-        setChannel (channel);
+        DEBUG_INFO (TAG, "Current channel: %d : %d", channel, ch2);
     }
-    DEBUG_INFO (TAG, "Starting ESP-NOW in in channel %u interface %s", channel, wifi_if == WIFI_IF_STA ? "STA" : "AP");
+    setChannel (channel, ch2);
+
+    DEBUG_INFO (TAG, ARDUHAL_LOG_COLOR (ARDUHAL_LOG_COLOR_RED) "Starting ESP-NOW in in channel %u interface %s", channel, wifi_if == WIFI_IF_STA ? "STA" : "AP");
 
     this->channel = channel;
     initComms ();
@@ -59,14 +60,14 @@ void QuickEspNow::stop () {
 
 }
 
-bool QuickEspNow::setChannel (uint8_t channel) {
+bool QuickEspNow::setChannel (uint8_t channel, wifi_second_chan_t ch2) {
     esp_err_t err_ok;
     if ((err_ok = esp_wifi_set_promiscuous (true))) {
         DEBUG_ERROR (TAG, "Error setting promiscuous mode: %s", esp_err_to_name (err_ok));
         return false;
     }
-    if ((err_ok = esp_wifi_set_channel (channel, WIFI_SECOND_CHAN_NONE))) {
-        DEBUG_ERROR (TAG, "Error setting wifi channel: %s", esp_err_to_name (err_ok));
+    if ((err_ok = esp_wifi_set_channel (channel, ch2))) { // This is needed even in STA mode. If not done and using IDF > 4.0, the ESP-NOW will not work.
+        DEBUG_DBG (TAG, "Error setting wifi channel: %d - %s", err_ok, esp_err_to_name (err_ok));
         return false;
     }
     if ((err_ok = esp_wifi_set_promiscuous (false))) {
@@ -211,18 +212,7 @@ void QuickEspNow::espnowTxHandle () {
         }
 
     } else {
-        DEBUG_WARN (TAG, "Not ready to send");
-        if (!confNotRcvd) {
-            confNotRcvd = true;
-            lastNotReadyResult = millis ();
-            return;
-        } else {
-            if (millis () - lastNotReadyResult > 100) {
-                confNotRcvd = false;
-                readyToSend = true;
-                DEBUG_WARN (TAG, "Ready to send reset");
-            }
-        }
+        DEBUG_DBG (TAG, "Not ready to send");
     }
 }
 
@@ -299,7 +289,7 @@ void QuickEspNow::initComms () {
 
     rx_queue = xQueueCreate (ESPNOW_QUEUE_SIZE, sizeof (comms_rx_queue_item_t));
     xTaskCreateUniversal (espnowRxTask_cb, "receive_handle", 4 * 1024, NULL, 1, &espnowRxTask, CONFIG_ARDUINO_RUNNING_CORE);
-    
+
 #ifdef MEAS_TPUT
     dataTPTimer = xTimerCreate ("espnow_tp_timer", pdMS_TO_TICKS (MEAS_TP_EVERY_MS), pdTRUE, NULL, tp_timer_cb);
     xTimerStart (dataTPTimer, 0);
@@ -316,7 +306,7 @@ void QuickEspNow::espnowTxTask_cb (void* param) {
 void QuickEspNow::espnowRxHandle () {
     comms_rx_queue_item_t rxMessage;
 
-    if (xQueueReceive (rx_queue, &rxMessage, pdMS_TO_TICKS (10000))) {
+    if (xQueueReceive (rx_queue, &rxMessage, portMAX_DELAY)) {
         DEBUG_DBG (TAG, "Comms message got from queue. %d left", uxQueueMessagesWaiting (rx_queue));
         DEBUG_VERBOSE (TAG, "Received message from " MACSTR " Len: %u", MAC2STR (rxMessage.srcAddress), rxMessage.payload_len);
         DEBUG_VERBOSE (TAG, "Message: %.*s", rxMessage.payload_len, rxMessage.payload);
@@ -345,7 +335,7 @@ void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
     comms_rx_queue_item_t message;
 
     DEBUG_DBG (TAG, "Received message with RSSI %d from " MACSTR " Len: %u", rx_ctrl->rssi, MAC2STR (mac_addr), len);
-    
+
     memcpy (message.srcAddress, mac_addr, ESP_NOW_ETH_ALEN);
     memcpy (message.payload, data, len);
     message.payload_len = len;
@@ -360,7 +350,7 @@ void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
 #ifdef MEAS_TPUT
     quickEspNow.rxDataReceived += len;
 #endif // MEAS_TPUT
-    
+
     if (!xQueueSend (quickEspNow.rx_queue, &message, pdMS_TO_TICKS (100))) {
         DEBUG_INFO (TAG, "Error sending message to queue");
     }
@@ -368,7 +358,7 @@ void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
 
 void QuickEspNow::tx_cb (uint8_t* mac_addr, uint8_t status) {
     quickEspNow.readyToSend = true;
-    DEBUG_DBG (TAG, "-------------- Ready to send: true");
+    DEBUG_DBG (TAG, "-------------- Ready to send: true. Status: %d", status);
     if (quickEspNow.sentResult) {
         quickEspNow.sentResult (mac_addr, status);
     }

@@ -23,6 +23,7 @@ static const uint8_t CURRENT_WIFI_CHANNEL = 255;
 static const size_t ESPNOW_MAX_MESSAGE_LENGTH = 250; ///< @brief Maximum message length
 static const uint8_t ESPNOW_ADDR_LEN = 6; ///< @brief Address length
 static const uint8_t ESPNOW_QUEUE_SIZE = 3; ///< @brief Queue size
+
 #ifdef MEAS_TPUT
 static const time_t MEAS_TP_EVERY_MS = 15000; ///< @brief Measurement time period
 #endif // MEAS_TPUT
@@ -104,7 +105,7 @@ public:
     uint8_t getAddressLength () { return ESPNOW_ADDR_LEN; }
     uint8_t getMaxMessageLength () { return ESPNOW_MAX_MESSAGE_LENGTH; }
     void enableTransmit (bool enable);
-    bool setChannel (uint8_t channel);
+    bool setChannel (uint8_t channel, wifi_second_chan_t ch2 = WIFI_SECOND_CHAN_NONE);
     bool setWiFiBandwidth (wifi_interface_t iface = WIFI_IF_AP, wifi_bandwidth_t bw = WIFI_BW_HT20);
 
 
@@ -128,9 +129,7 @@ protected:
 #endif // MEAS_TPUT
 
     bool readyToSend = true;
-    time_t lastNotReadyResult = 0;
-    bool confNotRcvd = false;
-    
+
     QueueHandle_t tx_queue;
     QueueHandle_t rx_queue;
     //SemaphoreHandle_t espnow_send_mutex;
