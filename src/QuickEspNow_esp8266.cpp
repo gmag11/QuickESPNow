@@ -285,6 +285,7 @@ void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
     memcpy (message.payload, data, len);
     message.payload_len = len;
     message.rssi = rx_ctrl->rssi - 100;
+    message.channel = rx_ctrl->channel;
     memcpy (message.dstAddress, espnow_data->destination_address, ESP_NOW_ETH_ALEN);
     
     if (quickEspNow.rx_queue.size () >= ESPNOW_QUEUE_SIZE) {
@@ -320,7 +321,7 @@ void QuickEspNow::espnowRxHandle () {
         if (quickEspNow.dataRcvd) {
             bool broadcast = ! memcmp (rxMessage->dstAddress, ESPNOW_BROADCAST_ADDRESS, ESP_NOW_ETH_ALEN);
         // quickEspNow.dataRcvd (mac_addr, data, len, rx_ctrl->rssi - 98); // rssi should be in dBm but it has added almost 100 dB. Do not know why
-            quickEspNow.dataRcvd (rxMessage->srcAddress, rxMessage->payload, rxMessage->payload_len, rxMessage->rssi, broadcast); // rssi should be in dBm but it has added almost 100 dB. Do not know why
+            quickEspNow.dataRcvd (rxMessage->srcAddress, rxMessage->payload, rxMessage->payload_len, rxMessage->rssi, broadcast, rxMessage->channel); // rssi should be in dBm but it has added almost 100 dB. Do not know why
         }
 
         rxMessage->payload_len = 0;

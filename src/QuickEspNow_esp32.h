@@ -61,6 +61,7 @@ typedef struct {
     uint8_t payload[ESPNOW_MAX_MESSAGE_LENGTH]; /**< Message payload */
     size_t payload_len; /**< Payload length */
     int8_t rssi; /**< RSSI */
+    unsigned int channel;
 } comms_rx_queue_item_t;
 
 typedef struct {
