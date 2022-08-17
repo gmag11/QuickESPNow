@@ -94,7 +94,7 @@ class QuickEspNow : public Comms_halClass {
 public:
     // QuickEspNow () :
     //     tx_queue (ESPNOW_QUEUE_SIZE) {}
-    bool begin (uint8_t channel = 255, uint32_t interface = 0);
+    bool begin (uint8_t channel = CURRENT_WIFI_CHANNEL, uint32_t interface = 0);
     void stop ();
     int32_t send (const uint8_t* dstAddress, const uint8_t* payload, size_t payload_len);
     int32_t sendBcast (const uint8_t* payload, size_t payload_len) {
@@ -134,6 +134,7 @@ protected:
     QueueHandle_t rx_queue;
     //SemaphoreHandle_t espnow_send_mutex;
     uint8_t channel;
+    bool followWiFiChannel = false;
 
     void initComms ();
     bool addPeer (const uint8_t* peer_addr);

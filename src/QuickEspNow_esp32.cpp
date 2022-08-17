@@ -13,7 +13,7 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
 
     wifi_second_chan_t ch2 = WIFI_SECOND_CHAN_NONE;
 
-    DEBUG_INFO (TAG, "Channel: %d, Interface: %d", channel, wifi_interface);
+    DEBUG_DBG (TAG, "Channel: %d, Interface: %d", channel, wifi_interface);
     // Set the wifi interface
     switch (wifi_interface) {
     case WIFI_IF_STA:
@@ -39,7 +39,8 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
         uint8_t ch;
         esp_wifi_get_channel (&ch, &ch2);
         channel = ch;
-        DEBUG_INFO (TAG, "Current channel: %d : %d", channel, ch2);
+        DEBUG_DBG (TAG, "Current channel: %d : %d", channel, ch2);
+        followWiFiChannel = true;
     }
     setChannel (channel, ch2);
 
@@ -61,6 +62,12 @@ void QuickEspNow::stop () {
 }
 
 bool QuickEspNow::setChannel (uint8_t channel, wifi_second_chan_t ch2) {
+
+    if (followWiFiChannel) {
+        DEBUG_WARN(TAG, "Cannot set channel while following WiFi channel");
+        return false;
+    }
+    
     esp_err_t err_ok;
     if ((err_ok = esp_wifi_set_promiscuous (true))) {
         DEBUG_ERROR (TAG, "Error setting promiscuous mode: %s", esp_err_to_name (err_ok));
@@ -74,6 +81,9 @@ bool QuickEspNow::setChannel (uint8_t channel, wifi_second_chan_t ch2) {
         DEBUG_ERROR (TAG, "Error setting promiscuous mode off: %s", esp_err_to_name (err_ok));
         return false;
     }
+
+    this->channel = channel;
+
     return true;
 }
 
@@ -235,16 +245,6 @@ bool QuickEspNow::addPeer (const uint8_t* peer_addr) {
     esp_now_peer_info_t peer;
     esp_err_t error = ESP_OK;
 
-    if (peer_list.peer_exists (peer_addr)) {
-        DEBUG_VERBOSE (TAG, "Peer already exists");
-        return true;
-    }
-
-    if (peer_list.peer_exists (peer_addr)) {
-        DEBUG_VERBOSE (TAG, "Peer already exists");
-        return true;
-    }
-
     if (peer_list.get_peer_number () >= ESP_NOW_MAX_TOTAL_PEER_NUM) {
         DEBUG_VERBOSE (TAG, "Peer list full. Deleting older");
         if (uint8_t* deleted_mac = peer_list.delete_peer ()) {
@@ -253,6 +253,22 @@ bool QuickEspNow::addPeer (const uint8_t* peer_addr) {
             DEBUG_ERROR (TAG, "Error deleting peer");
             return false;
         }
+    }
+
+    if (peer_list.peer_exists (peer_addr)) {
+        DEBUG_VERBOSE (TAG, "Peer already exists");
+        ESP_ERROR_CHECK (esp_now_get_peer (peer_addr, &peer));
+
+        uint8_t currentChannel = peer.channel;
+        DEBUG_DBG (TAG, "Peer " MACSTR " is using channel %d", MAC2STR (peer_addr), currentChannel);
+        if (currentChannel != this->channel) {
+            DEBUG_DBG (TAG, "Peer channel has to change from %d to %d", currentChannel, this->channel);
+            ESP_ERROR_CHECK_WITHOUT_ABORT (esp_now_get_peer (peer_addr, &peer));
+            peer.channel = this->channel;
+            ESP_ERROR_CHECK_WITHOUT_ABORT (esp_now_mod_peer (&peer));
+            DEBUG_ERROR (TAG, "Peer channel changed to %d", this->channel);
+        }
+        return true;
     }
 
     memcpy (peer.peer_addr, peer_addr, ESP_NOW_ETH_ALEN);
@@ -352,7 +368,7 @@ void QuickEspNow::rx_cb (uint8_t* mac_addr, uint8_t* data, uint8_t len) {
 #endif // MEAS_TPUT
 
     if (!xQueueSend (quickEspNow.rx_queue, &message, pdMS_TO_TICKS (100))) {
-        DEBUG_INFO (TAG, "Error sending message to queue");
+        DEBUG_WARN (TAG, "Error sending message to queue");
     }
 }
 
