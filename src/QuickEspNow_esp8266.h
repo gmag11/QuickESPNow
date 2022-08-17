@@ -103,6 +103,7 @@ protected:
     RingBuffer<comms_tx_queue_item_t> tx_queue;
     RingBuffer<comms_rx_queue_item_t> rx_queue;
     uint8_t channel;
+    bool followWiFiChannel = false;
 
     void initComms ();
     static void espnowTxTask_cb (void* param);

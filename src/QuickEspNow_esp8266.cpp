@@ -41,7 +41,7 @@ QuickEspNow quickEspNow;
 
 bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
 
-    DEBUG_INFO (TAG, "Channel: %d, Interface: %d", channel, wifi_interface);
+    DEBUG_DBG (TAG, "Channel: %d, Interface: %d", channel, wifi_interface);
     // Set the wifi interface
     switch (wifi_interface) {
     case WIFI_IF_STA:
@@ -66,8 +66,9 @@ bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
     if (channel == CURRENT_WIFI_CHANNEL) {
         uint8_t ch;
         ch = WiFi.channel ();
-        DEBUG_INFO (TAG, "Current channel: %d", ch);
+        DEBUG_DBG (TAG, "Current channel: %d", ch);
         channel = ch;
+        followWiFiChannel = true;
     } else {
         setChannel (channel);
     }
@@ -90,10 +91,19 @@ void QuickEspNow::stop () {
 }
 
 bool QuickEspNow::setChannel (uint8_t channel) {
+    
+    if (followWiFiChannel) {
+        DEBUG_WARN (TAG, "Cannot set channel while following WiFi channel");
+        return false;
+    }
+    
     if (!wifi_set_channel (channel)) {
         DEBUG_ERROR (TAG, "Error setting wifi channel: %u", channel);
         return false;
     }
+
+    this->channel = channel;
+    
     return true;
 }
 
