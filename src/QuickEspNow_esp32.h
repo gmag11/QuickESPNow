@@ -5,8 +5,8 @@
 #include "Arduino.h"
 #include "Comms_hal.h"
 
-#include "esp_now.h"
-#include "esp_wifi.h"
+#include <esp_now.h>
+#include <esp_wifi.h>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>

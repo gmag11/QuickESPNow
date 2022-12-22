@@ -5,8 +5,8 @@
 #include "Arduino.h"
 #include "Comms_hal.h"
 
-#include "espnow.h"
-#include "ESP8266WiFi.h"
+#include <espnow.h>
+#include <ESP8266WiFi.h>
 #include "RingBuffer.h"
 #include <QuickDebug.h>
 
