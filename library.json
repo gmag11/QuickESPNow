@@ -28,6 +28,8 @@
       ]
     },
     "dependencies": 
-    []
+    {
+        "gmag11/QuickDebug": "0.7.0"
+    }
 }
 
