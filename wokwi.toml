@@ -1,0 +1,4 @@
+[wokwi]
+version=1
+firmware='.\.pio\build\esp32_basic_espnow\firmware.bin'
+elf='.\.pio\build\esp32_basic_espnow\firmware.elf'
