@@ -16,8 +16,11 @@
 #include "WProgram.h"
 #endif
 
-typedef void (*comms_hal_rcvd_data)(uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast);
-typedef void (*comms_hal_sent_data)(uint8_t* address, uint8_t status);
+//typedef void (*comms_hal_rcvd_data)(uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast);
+typedef std::function<void (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast)> comms_hal_rcvd_data;
+//typedef void (*comms_hal_sent_data)(uint8_t* address, uint8_t status);
+typedef std::function<void (uint8_t* address, uint8_t status)> comms_hal_sent_data;
+
 
 /**
   * @brief Interface for communication subsystem abstraction layer definition
