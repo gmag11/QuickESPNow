@@ -14,9 +14,18 @@
 #else
 #include "WProgram.h"
 #endif
-#include "QuickDebug.h"
-
+// Disable debug dependency if debug level is 0
+#if DEBUG_LEVEL > 0
+#include <QuickDebug.h>
 static const char* RINGBUFFER_DEBUG_TAG = "RINGBUFFER";
+#else // DEBUG_LEVEL
+#define DEBUG_ERROR(...)
+#define DEBUG_INFO(...)
+#define DEBUG_VERBOSE(...)
+#define DEBUG_WARN(...)
+#define DEBUG_DBG(...)
+#endif
+
 
 /**
   * @brief Ring buffer class. Used to implement message buffer

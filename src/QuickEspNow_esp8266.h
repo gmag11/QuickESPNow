@@ -8,7 +8,17 @@
 #include <espnow.h>
 #include <ESP8266WiFi.h>
 #include "RingBuffer.h"
+// Disable debug dependency if debug level is 0
+#if DEBUG_LEVEL > 0
 #include <QuickDebug.h>
+constexpr auto QESPNOW_TAG = "QESPNOW";
+#else // DEBUG_LEVEL
+#define DEBUG_ERROR(...)
+#define DEBUG_INFO(...)
+#define DEBUG_VERBOSE(...)
+#define DEBUG_WARN(...)
+#define DEBUG_DBG(...)
+#endif
 
 //#define MEAS_TPUT
 

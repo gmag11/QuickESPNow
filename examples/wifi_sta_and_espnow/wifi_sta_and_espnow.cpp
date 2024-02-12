@@ -12,10 +12,15 @@
 
 static const String msg = "Hello esp-now!";
 
-static uint8_t receiver[] = { 0x12, 0x34, 0x56, 0x78, 0x90, 0x12 };
+#define USE_BROADCAST 1 // Set this to 1 to use broadcast communication
 
+#if USE_BROADCAST != 1
+// set the MAC address of the receiver for unicast
+static uint8_t receiver[] = { 0x12, 0x34, 0x56, 0x78, 0x90, 0x12 };
 #define DEST_ADDR receiver
-//#define DEST_ADDR ESPNOW_BROADCAST_ADDRESS 
+#else //USE_BROADCAST != 1
+#define DEST_ADDR ESPNOW_BROADCAST_ADDRESS 
+#endif //USE_BROADCAST != 1
 
 void dataReceived (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast) {
     Serial.print ("Received: ");
@@ -23,7 +28,6 @@ void dataReceived (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi
     Serial.printf ("RSSI: %d dBm\n", rssi);
     Serial.printf ("From: " MACSTR "\n", MAC2STR(address));
     Serial.printf ("%s\n", broadcast ? "Broadcast" : "Unicast");
-
 }
 
 void setup () {
