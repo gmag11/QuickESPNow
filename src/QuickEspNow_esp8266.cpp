@@ -215,11 +215,9 @@ void QuickEspNow::espnowTxHandle () {
         //DEBUG_WARN ("Process queue: Elements: %d", tx_queue.size ());
         comms_tx_queue_item_t* message;
         while (!tx_queue.empty ()) {
+            if (!readyToSend) return;
             message = tx_queue.front ();
             DEBUG_DBG (QESPNOW_TAG, "Comms message got from queue. %d left", tx_queue.size ());
-            while (!readyToSend) {
-                delay (1);
-            }
             if (!sendEspNowMessage (message)) {
                 DEBUG_DBG (QESPNOW_TAG, "Message to " MACSTR " sent. Len: %u", MAC2STR (message->dstAddress), message->payload_len);
             } else {
