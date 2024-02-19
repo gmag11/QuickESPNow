@@ -83,7 +83,7 @@ class QuickEspNow : public Comms_halClass {
 public:
     QuickEspNow () :
         tx_queue (ESPNOW_QUEUE_SIZE), rx_queue (ESPNOW_QUEUE_SIZE) {}
-    bool begin (uint8_t channel = 255, uint32_t interface = 0, bool synchronousSend = false) override;
+    bool begin (uint8_t channel = 255, uint32_t interface = 0, bool synchronousSend = true) override;
     void stop () override;
     comms_send_error_t send (const uint8_t* dstAddress, const uint8_t* payload, size_t payload_len) override;
     comms_send_error_t sendBcast (const uint8_t* payload, size_t payload_len) {

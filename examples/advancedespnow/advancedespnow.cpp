@@ -51,7 +51,7 @@ void setup () {
     Serial.printf ("Connected to %s in channel %d\n", WiFi.SSID ().c_str (), WiFi.channel ());
     Serial.printf ("IP address: %s\n", WiFi.localIP ().toString ().c_str ());
     Serial.printf ("MAC address: %s\n", WiFi.macAddress ().c_str ());
-    quickEspNow.begin (1);
+    quickEspNow.begin (1, 0, false);
     quickEspNow.onDataSent (dataSent);
     quickEspNow.onDataRcvd (dataReceived);
 }
