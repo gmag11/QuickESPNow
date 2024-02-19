@@ -42,7 +42,7 @@ void setup () {
     Serial.printf ("IP address: %s\n", WiFi.localIP ().toString ().c_str ());
     Serial.printf ("MAC address: %s\n", WiFi.macAddress ().c_str ());
     quickEspNow.onDataRcvd (dataReceived);
-    quickEspNow.begin (); // Use no parameters to start ESP-NOW on same channel as WiFi, in STA mode
+    quickEspNow.begin (); // Use no parameters to start ESP-NOW on same channel as WiFi, in STA mode and synchronous send mode
 }
 
 void loop() { 

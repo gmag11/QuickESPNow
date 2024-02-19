@@ -31,13 +31,18 @@ static const uint8_t ESPNOW_ADDR_LEN = 6; ///< @brief Address length
 static const uint8_t ESPNOW_QUEUE_SIZE = 3; ///< @brief Queue size
 static const int TASK_PERIOD = 10; ///< @brief Rx and Tx tasks period
 #ifdef MEAS_TPUT
-static const time_t MEAS_TP_EVERY_MS = 15000; ///< @brief Measurement time period
+static const time_t MEAS_TP_EVERY_MS = 10000; ///< @brief Measurement time period
 #endif // MEAS_TPUT
 
 #define ESP_NOW_ETH_ALEN 6
 #define ESP_NOW_MAX_DATA_LEN 250
 #define WIFI_IF_STA STATION_IF
 #define WIFI_IF_AP SOFTAP_IF
+
+typedef enum {
+    ESP_NOW_SEND_SUCCESS = 0,       /**< Send ESPNOW data successfully */
+    ESP_NOW_SEND_FAIL,              /**< Send ESPNOW data fail */
+} esp_now_send_status_t;
 
 typedef struct {
     uint16_t frame_head;
@@ -78,18 +83,19 @@ class QuickEspNow : public Comms_halClass {
 public:
     QuickEspNow () :
         tx_queue (ESPNOW_QUEUE_SIZE), rx_queue (ESPNOW_QUEUE_SIZE) {}
-    bool begin (uint8_t channel = 255, uint32_t interface = 0);
-    void stop ();
-    int32_t send (const uint8_t* dstAddress, const uint8_t* payload, size_t payload_len);
-    int32_t sendBcast (const uint8_t* payload, size_t payload_len) {
+    bool begin (uint8_t channel = 255, uint32_t interface = 0, bool synchronousSend = false) override;
+    void stop () override;
+    comms_send_error_t send (const uint8_t* dstAddress, const uint8_t* payload, size_t payload_len) override;
+    comms_send_error_t sendBcast (const uint8_t* payload, size_t payload_len) {
         return send (ESPNOW_BROADCAST_ADDRESS, payload, payload_len);
     }
-    void onDataRcvd (comms_hal_rcvd_data dataRcvd);
-    void onDataSent (comms_hal_sent_data sentResult);
-    uint8_t getAddressLength () { return ESPNOW_ADDR_LEN; }
-    uint8_t getMaxMessageLength () { return ESPNOW_MAX_MESSAGE_LENGTH; }
-    void enableTransmit (bool enable);
+    void onDataRcvd (comms_hal_rcvd_data dataRcvd) override;
+    void onDataSent (comms_hal_sent_data sentResult) override;
+    uint8_t getAddressLength ()  override { return ESPNOW_ADDR_LEN; }
+    uint8_t getMaxMessageLength ()  override { return ESPNOW_MAX_MESSAGE_LENGTH; }
+    void enableTransmit (bool enable) override;
     bool setChannel (uint8_t channel);
+    bool readyToSendData ();
 
 protected:
     uint8_t wifi_if;
@@ -110,9 +116,15 @@ protected:
 #endif // MEAS_TPUT
 
     bool readyToSend = true;
+
+    bool waitingForConfirmation = false;
+    bool synchronousSend = false;
+    uint8_t sentStatus;
+    int queueSize = ESPNOW_QUEUE_SIZE;
+
     RingBuffer<comms_tx_queue_item_t> tx_queue;
     RingBuffer<comms_rx_queue_item_t> rx_queue;
-    uint8_t channel;
+    //uint8_t channel;
     bool followWiFiChannel = false;
 
     void initComms ();

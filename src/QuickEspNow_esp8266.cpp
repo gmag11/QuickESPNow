@@ -37,7 +37,9 @@ typedef struct {
 
 QuickEspNow quickEspNow;
 
-bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface) {
+bool QuickEspNow::begin (uint8_t channel, uint32_t wifi_interface, bool synchronousSend) {
+
+    this->synchronousSend = synchronousSend;
 
     DEBUG_DBG (QESPNOW_TAG, "Channel: %d, Interface: %d", channel, wifi_interface);
     // Set the wifi interface
@@ -85,7 +87,10 @@ void QuickEspNow::stop () {
     esp_now_unregister_recv_cb ();
     esp_now_unregister_send_cb ();
     esp_now_deinit ();
+}
 
+bool QuickEspNow::readyToSendData () {
+    return tx_queue.size () < queueSize;
 }
 
 bool QuickEspNow::setChannel (uint8_t channel) {
@@ -105,27 +110,28 @@ bool QuickEspNow::setChannel (uint8_t channel) {
     return true;
 }
 
-int32_t QuickEspNow::send (const uint8_t* dstAddress, const uint8_t* payload, size_t payload_len) {
+comms_send_error_t QuickEspNow::send (const uint8_t* dstAddress, const uint8_t* payload, size_t payload_len) {
     comms_tx_queue_item_t message;
 
     if (!dstAddress || !payload || !payload_len) {
         DEBUG_WARN (QESPNOW_TAG, "Parameters error");
-        return -1;
+        return COMMS_SEND_PARAM_ERROR;
     }
 
     if (payload_len > ESP_NOW_MAX_DATA_LEN) {
         DEBUG_WARN (QESPNOW_TAG, "Length error. %d", payload_len);
-        return -1;
+        return COMMS_SEND_PAYLOAD_LENGTH_ERROR;
     }
 
     if (tx_queue.size () >= ESPNOW_QUEUE_SIZE) {
 #ifdef MEAS_TPUT
-        comms_tx_queue_item_t* tempBuffer;
-        tempBuffer = tx_queue.front ();
-        txDataDropped += tempBuffer->payload_len;
+        //comms_tx_queue_item_t* tempBuffer;
+        //tempBuffer = tx_queue.front ();
+        //txDataDropped += tempBuffer->payload_len;
 #endif // MEAS_TPUT
-        tx_queue.pop ();
-        DEBUG_DBG (QESPNOW_TAG, "Message dropped");
+        // tx_queue.pop ();
+        // DEBUG_DBG (QESPNOW_TAG, "Message dropped");
+        return COMMS_SEND_QUEUE_FULL_ERROR;
     }
 
     memcpy (message.dstAddress, dstAddress, ESP_NOW_ETH_ALEN);
@@ -138,10 +144,19 @@ int32_t QuickEspNow::send (const uint8_t* dstAddress, const uint8_t* payload, si
 #endif // MEAS_TPUT
         DEBUG_DBG (QESPNOW_TAG, "--------- %d Comms messages queued. Len: %d", tx_queue.size (), payload_len);
         DEBUG_VERBOSE (QESPNOW_TAG, "--------- Ready to send is %s", readyToSend ? "true" : "false");
-        return 0;
+        if (synchronousSend) {
+            waitingForConfirmation = true;
+            DEBUG_INFO (QESPNOW_TAG, "--------- Waiting for send confirmation");
+            while (waitingForConfirmation) {
+                esp_yield ();
+            }
+            DEBUG_INFO (QESPNOW_TAG, "--------- Confirmation is %s", sentStatus == ESP_NOW_SEND_SUCCESS ? "true" : "false");
+            return (sentStatus == ESP_NOW_SEND_SUCCESS) ? COMMS_SEND_OK : COMMS_SEND_CONFIRM_ERROR;
+        }
+        return COMMS_SEND_OK;
     } else {
         DEBUG_WARN (QESPNOW_TAG, "Error queuing Comms message to " MACSTR, MAC2STR (dstAddress));
-        return -1;
+        return COMMS_SEND_MSG_ENQUEUE_ERROR;
     }
 }
 
@@ -217,9 +232,11 @@ void QuickEspNow::espnowTxHandle () {
         while (!tx_queue.empty ()) {
             message = tx_queue.front ();
             DEBUG_DBG (QESPNOW_TAG, "Comms message got from queue. %d left", tx_queue.size ());
-            while (!readyToSend) {
-                delay (1);
-            }
+            DEBUG_VERBOSE (QESPNOW_TAG, "Ready to send is %s", readyToSend ? "true" : "false");
+            DEBUG_VERBOSE (QESPNOW_TAG, "synchrnousSend is %s", synchronousSend ? "true" : "false");
+            // while (!readyToSend && !synchronousSend) {
+            //     esp_delay (1);
+            // }
             if (!sendEspNowMessage (message)) {
                 DEBUG_DBG (QESPNOW_TAG, "Message to " MACSTR " sent. Len: %u", MAC2STR (message->dstAddress), message->payload_len);
             } else {
@@ -267,7 +284,6 @@ void QuickEspNow::initComms () {
 
     os_timer_setfn (&espnowRxTask, espnowRxTask_cb, NULL);
     os_timer_arm (&espnowRxTask, TASK_PERIOD, true);
-
 
 #ifdef MEAS_TPUT
     os_timer_setfn (&dataTPTimer, tp_timer_cb, NULL);
@@ -340,6 +356,9 @@ void QuickEspNow::espnowRxHandle () {
 
 void QuickEspNow::tx_cb (uint8_t* mac_addr, uint8_t status) {
     quickEspNow.readyToSend = true;
+    quickEspNow.sentStatus = status;
+    DEBUG_DBG (QESPNOW_TAG, "-------------- Tx Confirmed %s", status == ESP_NOW_SEND_SUCCESS ? "true" : "false");
+    quickEspNow.waitingForConfirmation = false;
     DEBUG_DBG (QESPNOW_TAG, "-------------- Ready to send: true");
     if (quickEspNow.sentResult) {
         quickEspNow.sentResult (mac_addr, status);

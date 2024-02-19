@@ -21,6 +21,15 @@ typedef std::function<void (uint8_t* address, uint8_t* data, uint8_t len, signed
 //typedef void (*comms_hal_sent_data)(uint8_t* address, uint8_t status);
 typedef std::function<void (uint8_t* address, uint8_t status)> comms_hal_sent_data;
 
+typedef enum {
+    COMMS_SEND_OK = 0, /**< Data was enqued for sending successfully */
+    COMMS_SEND_PARAM_ERROR = -1, /**< Data was not sent due to parameter call error */
+    COMMS_SEND_PAYLOAD_LENGTH_ERROR = -2, /**< Data was not sent due to payload too long */
+    COMMS_SEND_QUEUE_FULL_ERROR = -3, /**< Data was not sent due to queue full */
+    COMMS_SEND_MSG_ENQUEUE_ERROR = -4, /**< Data was not sent due to message queue push error */
+    COMMS_SEND_CONFIRM_ERROR = -5, /**< Data was not sent due to confirmation error (only for synchronous send) */
+} comms_send_error_t;
+
 /**
   * @brief Interface for communication subsystem abstraction layer definition
   */
@@ -47,9 +56,10 @@ public:
 	  * @brief Setup communication environment and establish the connection from node to gateway
 	  * @param gateway Address of gateway. It may be `NULL` in case this is used in the own gateway
 	  * @param channel Establishes a channel for the communication. Its use depends on actual communications subsystem
-	  * @param peerType Role that peer plays into the system, node or gateway.
-	  */
-    virtual bool begin (uint8_t channel, uint32_t interface = 0) = 0;
+      * @param peerType Role that peer plays into the system, node or gateway.
+      * @return Returns `true` if the communication subsystem was successfully initialized, `false` otherwise
+      */
+    virtual bool begin (uint8_t channel, uint32_t interface = 0, bool synchronousSend = true) = 0;
 
 	/**
 	  * @brief Terminates communication and closes all connectrions
@@ -63,7 +73,7 @@ public:
 	  * @param len Data length in number of bytes
 	  * @return Returns sending status. 0 for success, any other value to indicate an error.
 	  */
-	virtual int32_t send (const uint8_t* da, const uint8_t* data, size_t len) = 0;
+    virtual comms_send_error_t send (const uint8_t* da, const uint8_t* data, size_t len) = 0;
 
 	/**
 	  * @brief Attach a callback function to be run on every received message
