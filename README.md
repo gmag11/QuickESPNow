@@ -17,14 +17,40 @@ Besides, it removes some limitations:
 - No more 20 devices limit. You can use ESP-NOW with **any number of devices**. Library takes control of peer registration and makes it transparent to you.
 - Channel selection is not required for WiFi coexistence.
 - No need to assign a role to each device. Just use it for peer to peer communication.
-- **RSSI** information of every message.
+- **RSSI** information of every message, so that receiver can estimate how close the sender is.
 - Receiver can distiguish between broadcast and unicast messages.
-- Tested maximum througput, about 1500 kbps continuous with default parameters.
+- Tested maximum througput, about 600 kbps continuous with default parameters.
 - Encryption is not supported. Usage of ESP-NOW encryption restrict system to 6 devices. You can implement data encryption in a higher layer.
+- Asynchronous Sending Mode: The send method now supports a blocking mode, returning a value only after the message send has been confirmed. It returns 0 if the message was sent successfully and a different value if there was an error. This feature ensures reliable message delivery by waiting for confirmation before proceeding withour the user needing to implement a TX callback function.
+It is importatnt to know that the best performance is achieved when using asynchronous mode, as it allows the library to send messages in the background while the user code continues to run. The synchronous mode is provided for users who require a blocking send method for ease of use.
+- Default Mode Change: For ease of use, the asynchronous mode is now the default configuration. This mode can be set during the `begin` function call, streamlining the setup process for new projects. This change aims to simplify the initial configuration for developers by automatically opting for the more user-friendly synchronous sending mode. If you require best performance, you can still change the mode to asynchronous by calling `begin` function with the proper parameter.
+
+## Performance
+
+I include this table to show the performance of the library. It was tested with ESP32 and ESP8266, sending messages as fastest as possible. The test has been repeated with different message lengths and using synchronous and asynchronous modes.
+
+| Device | broadcast/unicast | sync/async | 250 bytes | 125 bytes | 75 bytes | 35 bytes |  12 bytes |
+|--------|-------------------|------------|-----------|-----------|----------|----------|-----------|
+| ESP32  |  broadcast        | async      | 640 kbps  | 450 kbps  | 340 kbps | 190 kbps |  75 kbps  |
+| ESP32  |  broadcast        | sync       | 615 kbps  | 440 kbps  | 320 kbps | 180 kbps |  73 kbps  |
+| ESP8266|  broadcast        | async      | 600 kbps  | 300 kbps  | 180 kbps |  84 kbps |  28 kbps  |
+| ESP8266|  broadcast        | sync       | 200 kbps  | 100 kbps  |  60 kbps |  28 kbps | 9.5 kbps  |
+| ESP32  |  unicast          | async      | 570 kbps  | 400 kbps  | 285 kbps | 160 kbps |  60 kbps  |
+| ESP32  |  unicast          | sync       | 550 kbps  | 375 kbps  | 270 kbps | 150 kbps |  57 kbps  |
+| ESP8266|  unicast          | async      | 600 kbps  | 300 kbps  | 180 kbps |  84 kbps |  28 kbps  |
+| ESP8266|  unicast          | sync       | 200 kbps  | 100 kbps  |  60 kbps |  28 kbps | 9.5 kbps  |
+
+Please note that these maximum values represent the best-case scenario without any message loss, assuming the microcontroller is not running any other tasks.
+
+However, it's important to consider that in synchronous mode, where the user code is blocked until the message is sent (which can take from 1 to 20 ms), the actual performance may be significantly lower depending on the rest of the code.
+
+On the other hand, in asynchronous mode, the `send` function returns in just 22us for both ESP32 and ESP8266, so it is not expected to have a significant impact on the rest of the code.
+
+Please note that the performance of ESP8266 is lower than ESP32. This may cause problems if an ESP32 is sending messages at a higher rate than the ESP8266 can handle. In such cases, the receiver may lose messages or even crash. If you need to use both devices in the same network, it is recommended to keep the message rate at a safe level for the slowest device.
 
 ## Usage
 
-One just only needs to call begin and set a receivin callback function, if you need to receive data. Then you can use send function to send data to a specific device or use `ESPNOW_BROADCAST_ADDRESS` to send data to all listening devices in the same channel.
+To get started with Quick ESP-NOW, simply call the `begin` function and set a receiving callback function if you need to receive data. Then, you can use the `send` function to send data to a specific device or use `ESPNOW_BROADCAST_ADDRESS` to send data to all listening devices on the same channel.
 
 ```C++
 void dataReceived (uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast) {

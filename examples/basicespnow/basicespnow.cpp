@@ -48,7 +48,7 @@ void setup () {
 #ifdef ESP32
     quickEspNow.setWiFiBandwidth (WIFI_IF_STA, WIFI_BW_HT20); // Only needed for ESP32 in case you need coexistence with ESP8266 in the same network
 #endif //ESP32
-    quickEspNow.begin (1); // If you use no connected WiFi channel should be specified
+    quickEspNow.begin (1); // If you use no connected WiFi channel needs to be specified
 }
 
 void loop () {

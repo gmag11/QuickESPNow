@@ -1,4 +1,4 @@
-Copyright (c) 2022 gmag11@github
+# Copyright (c) 2022 gmag11@github
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
