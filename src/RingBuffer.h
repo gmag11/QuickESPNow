@@ -1,7 +1,5 @@
 /**
-  * @file EnigmaIOTRingBuffer.h
-  * @version 0.9.8
-  * @date 15/07/2021
+  * @file RingBuffer.h
   * @author German Martin
   * @brief Library to build a gateway for EnigmaIoT system
   */

@@ -33,12 +33,15 @@ I include this table to show the performance of the library. It was tested with 
 |--------|-------------------|------------|-----------|-----------|----------|----------|-----------|
 | ESP32  |  broadcast        | async      | 640 kbps  | 450 kbps  | 340 kbps | 190 kbps |  75 kbps  |
 | ESP32  |  broadcast        | sync       | 615 kbps  | 440 kbps  | 320 kbps | 180 kbps |  73 kbps  |
-| ESP8266|  broadcast        | async      | 600 kbps  | 300 kbps  | 180 kbps |  84 kbps |  28 kbps  |
+| ESP8266|  broadcast        | async      | 200 kbps  | 100 kbps  |  60 kbps |  28 kbps | 9.5 kbps  |
 | ESP8266|  broadcast        | sync       | 200 kbps  | 100 kbps  |  60 kbps |  28 kbps | 9.5 kbps  |
 | ESP32  |  unicast          | async      | 570 kbps  | 400 kbps  | 285 kbps | 160 kbps |  60 kbps  |
 | ESP32  |  unicast          | sync       | 550 kbps  | 375 kbps  | 270 kbps | 150 kbps |  57 kbps  |
-| ESP8266|  unicast          | async      | 600 kbps  | 300 kbps  | 180 kbps |  84 kbps |  28 kbps  |
+| ESP8266|  unicast          | async      | 200 kbps  | 100 kbps  |  60 kbps |  28 kbps | 9.5 kbps  |
 | ESP8266|  unicast          | sync       | 200 kbps  | 100 kbps  |  60 kbps |  28 kbps | 9.5 kbps  |
+
+**Note** : In previous versions of the library, esp8266 was able to send messages at 600 kBps, but it was a mistake. The actual performance is 200 kbps. The table has been updated to reflect the correct values. It was due a to a missing check to avoid sending a message before the previous one was confirmed. This check has been added in version 0.8.1.
+It seems that this check is not completely mandarory and both ESP8266 and ESP32 are able to send messages correctly even if latest one has not been confirmed. I will investigate what implications this may have and if it is possible to (optionally) remove this check in future versions.
 
 Please note that these maximum values represent the best-case scenario without any message loss, assuming the microcontroller is not running any other tasks.
 

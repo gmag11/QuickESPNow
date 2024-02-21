@@ -61,7 +61,8 @@ void loop () {
     static unsigned int counter = 0;
 
      // Sent flag is needed to wait for the message to be actually sent. Avoids messages dropping, maximizing throughput.
-    if (sent && ((millis () - lastSend) > SEND_MSG_MSEC)) {
+     // readyToSendData() is used to avoid sending messages too fast, which can lead to messages dropping.
+    if (quickEspNow.readyToSendData() && sent && ((millis () - lastSend) > SEND_MSG_MSEC)) {
         lastSend = millis ();
         String message = String (msg) + " " + String (counter++);
         sent = false;
@@ -69,7 +70,7 @@ void loop () {
             Serial.printf (">>>>>>>>>> Message sent\n");
         } else {
             Serial.printf (">>>>>>>>>> Message not sent\n");
-            sent = true;
+            sent = true; // In case of error we need to set the flag to true to avoid blocking the loop
         }
 
     }
